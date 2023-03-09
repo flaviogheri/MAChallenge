@@ -4,7 +4,7 @@ a track from a given set of waypoints. To be run together with LoadWPL and LOS_g
 The main run of the simulator should be: update current position (by gps or ship sim) ->
 check whether current waypoint has been reached -> update current waypoint -> find heading
 """
-"flavio is awseome"
+
 import numpy as np
 from LoadWPL import load_wpl
 from LOS_guidance import LOS_latlon
