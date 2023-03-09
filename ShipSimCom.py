@@ -31,9 +31,3 @@ ser.write(full_cmd.encode())
 response = ser.readline()
 print(response)
 ser.close()
-
-
-
-
-
-ser.close()
