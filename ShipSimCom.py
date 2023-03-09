@@ -3,6 +3,8 @@ Created by Daniel-Iosif Trubacs for the MAC team on 8 March 2023. The purpose of
 serial connection to Ship Sim 3.
 """
 
+
+
 import serial
 
 # establish serial connection
