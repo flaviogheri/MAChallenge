@@ -1,5 +1,6 @@
-#%%
 import serial
+
+
 # establish serial communication
 ser = serial.Serial(port="COM4", baudrate=115200, timeout=1)
 
@@ -17,10 +18,10 @@ def NMEA_CRC(msg):
     return '%X' % crc
 
 
-def follow_speed(speed=5):
+def fwd(thrust_percent=84):
     "takes as input the desired speed in kts and sends this to the autopilot"
 
-    cmd = f"$CCAPT,M,{speed},K"
+    cmd = f"$CCTHD,{thrust_percent},0,0,0,0,0" # 5kts
     checksum = NMEA_CRC(cmd) # calculate checksum of desired command
     full_cmd = f"{cmd}*{checksum}\r\n" # add checksum to command
     ser.write(full_cmd.encode()) # write to 
@@ -68,7 +69,6 @@ def decode_response(message):
         speed = params[7] # speed over ground in kts
         course = params[8]
         
-        print(f"Message ID: {message_id}")
         print(f"UTC time: {utc_time}")
         print(f"Latitude: {lat} {lat_dir}")
         print(f"Longitude: {lon} {lon_dir}")
@@ -77,33 +77,24 @@ def decode_response(message):
     
     # return lat, lon, speed, course, utc_time
 
-    
-    
-follow_speed(5)
-follow_heading(90)
+fwd()
+follow_heading(140)
+
 
 signal_updates()
 
+while True:
+    try:
+        # read a line of data from the serial port
+        message = ser.readline()
 
-# while True:
-#     try:
-#         # read a line of data from the serial port
-#         message = ser.readline()
+        decode_response(message)
 
-#         decode_response(message)
-
-    
-
-        
-
-        
-#     except KeyboardInterrupt:
-#         # exit the loop on Ctrl-C
-#         ser.close()
-#         break
+    except KeyboardInterrupt:
+        # exit the loop on Ctrl-C
+        ser.close()
+        break
         
 ser.close() # close the serial port when done
 
-#TODO get data out
-#TODO speed in knots
 
