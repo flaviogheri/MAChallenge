@@ -41,6 +41,7 @@ class ShipSimCom():
 
     def serial_to_python():
 
+    
 
         output_cmd
 
