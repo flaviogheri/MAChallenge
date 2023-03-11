@@ -151,11 +151,3 @@ class Simulator:
                                                                                    self._current_pos) < 1:
                 self._mission = True
 
-
-
-if __name__ == '__main__':
-    tracks_test = load_wpl('data.txt')
-    print(tracks_test[0][0])
-
-sim = Simulator.simulate(data_file)
-print("/////////----------------")
