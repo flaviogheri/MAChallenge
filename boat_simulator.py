@@ -7,16 +7,20 @@ update track and waypoint -> find heading -> set speed -> update current positio
 """
 
 import numpy as np
+print("///*******///")
+
 from LoadWPL import load_wpl
 from LOS_guidance import LOS_latlon, call_distance
-from ShipSimCom import follow_heading, decode_response
+from ShipSimCom import follow_heading, set_thrust, decode_response
 import serial
 
+print("/////////")
 
 def next_item(item, array: np.ndarray):
     """ Return the next item from a numpy array when the current item (but not index) is known. """
     index = np.where(item == array)[0][0]
     return array[index + 1]
+
 
 
 class Simulator:
@@ -50,26 +54,37 @@ class Simulator:
         # a parameter to check whether the last object has been achieved. The main
         # loop should run until this has been achieve
         self._mission = False
+        
+        self.prev_out = np.zeros(5)
 
     # a function to create connection with external hardware
     def create_connection(self, n_port: str, n_baudrate: int, n_timeout: int):
         """Establishes serial communication with external hardware. See serial.Serial for more documentation."""
         self._ser = serial.Serial(port=n_port, baudrate=n_baudrate, timeout=n_timeout)
+        
 
     def __update_position(self):
         """ Update current position from external readings of GPS."""
         # read current input from serial
         ser_message = self._ser.readline()
+        
+        if decode_response(ser_message) == None:
+            out = self.prev_out
 
-        # decode message into lat, long, speed, course, utc_time
-        out = decode_response(ser_message)
-
+        else:
+            # decode message into lat, long, speed, course, utc_time
+            out = decode_response(ser_message)
+    
         # extract lat and long
         lat = float(out[0])
         long = float(out[1])
-
+        
+    
         # update position of the boat
+        self.prev_out = out
         self._current_pos = np.array([lat, long])
+        
+        print(self._current_pos)
 
     def __update_current_track(self):
         """ Change current track when current waypoint becomes last waypoint in the track """
@@ -107,7 +122,14 @@ class Simulator:
     def simulate(self):
         """The main loop running the simulation."""
         # create connection with the hardware
+        
+        print("create connection with the hardware")
+
         Simulator.create_connection(self, 'COM4', 115200, 1)
+
+        
+        set_thrust()
+        print("thrust initiation")
 
         # running until the mission is achieved
         while not self._mission:
@@ -128,3 +150,12 @@ class Simulator:
             if self._current_waypoint == self.track_list[-1][-1] and call_distance(self._current_waypoint,
                                                                                    self._current_pos) < 1:
                 self._mission = True
+
+
+
+if __name__ == '__main__':
+    tracks_test = load_wpl('data.txt')
+    print(tracks_test[0][0])
+
+sim = Simulator.simulate(data_file)
+print("/////////----------------")
