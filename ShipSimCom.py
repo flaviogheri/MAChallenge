@@ -78,7 +78,7 @@ def decode_response(message):
     # return lat, lon, speed, course, utc_time
 
 fwd()
-follow_heading(140)
+follow_heading(350)
 
 
 signal_updates()
