@@ -114,9 +114,15 @@ class Simulator:
     def find_heading(self):
         # if the boat just started (the first waypoint has not been reached) use [0,0] as start
         if self._last_waypoint is None:
-            return LOS_latlon(self._current_pos, np.array([0, 0]), self._current_waypoint)
+            print("fanculoss")
+            heading= LOS_latlon(self._current_pos, np.array([0, 0]), self._current_waypoint)[0]
+            return heading
+            
         else:
-            return LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)
+            print("fanculo")
+            heading = LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[0]
+            return heading
+            
 
     def simulate(self):
         """The main loop running the simulation."""
