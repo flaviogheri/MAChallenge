@@ -8,7 +8,7 @@ update track and waypoint -> find heading -> set speed -> update current positio
 
 import numpy as np
 from LoadWPL import load_wpl
-from LOS_guidance import LOS_latlon, call_distance
+from LOS_guidance import LOS_latlon, call_distance, DMM_to_DEG
 from ShipSimCom import follow_heading, set_thrust, decode_response
 import serial
 from bearing_test import bearing
@@ -126,9 +126,12 @@ class Simulator:
         else:
             # check whether current waypoint has been reached
             
+            #Convert format of waypoint from DMM to DEG 
+            current_waypoint_DEG = DMM_to_DEG(self._current_waypoint)
+            current_pos_DEG = DMM_to_DEG(self._current_pos)
+
             # print("-----"self._current_waypoint, self._current_pos)
-            
-            distance = call_distance(self._current_waypoint, self._current_pos)[0] # distance in m
+            distance = call_distance(current_waypoint_DEG, current_pos_DEG)[0] # distance in m
             print("DISTANCE TO WAYPOINT: ", distance)
             if distance < 40:
                 # last waypoint becomes current waypoint
