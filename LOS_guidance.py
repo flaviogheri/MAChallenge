@@ -34,6 +34,10 @@ def call_distance(P1, P2):
         # Set radius of earth
         pole_radius = 6356752.314245  # Pole radius of earth
         equator_radius = 6378137.0  # Equator radius
+        
+        #Convert DMM unit to DEG unit 
+        P1=DMM_to_DEG(P1)
+        P2=DMM_to_DEG(P2)
 
         # Convert latlon to radians
         lat_P1 = math.radians(P1[0])
