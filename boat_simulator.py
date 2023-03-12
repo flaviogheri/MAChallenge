@@ -27,6 +27,7 @@ def next_item(item, array: np.ndarray):
             return array[i+1]
 
 
+
 class Simulator:
     def __init__(self, data_file: str):
         """ Class for simulating ship movement.
@@ -60,6 +61,8 @@ class Simulator:
         self._mission = False
         
         self.prev_out = np.zeros(5)
+        
+        self.initial_pos = [5050.700, 44.773] 
 
     # a function to create connection with external hardware
     def create_connection(self, n_port: str, n_baudrate: int, n_timeout: int):
@@ -122,9 +125,12 @@ class Simulator:
             self._current_waypoint = self._current_track[0]
         else:
             # check whether current waypoint has been reached
+            
+            # print("-----"self._current_waypoint, self._current_pos)
+            
             distance = call_distance(self._current_waypoint, self._current_pos)[0] # distance in m
             print("DISTANCE TO WAYPOINT: ", distance)
-            if distance < 400:
+            if distance < 40:
                 # last waypoint becomes current waypoint
                 self._last_waypoint = self._current_waypoint
                 print("///////////// READY FOR NEXT WAYPOINT ", next_item(self._current_waypoint, self._current_track))
@@ -140,7 +146,7 @@ class Simulator:
         # print("current_waypoint", self._current_waypoint)
         
         if self._last_waypoint is None:
-            heading= LOS_latlon(self._current_pos, self._current_pos, self._current_waypoint)[0]
+            heading = LOS_latlon(self._current_pos, self.initial_pos, self._current_waypoint)[0]
             return heading
             
         else:
@@ -153,12 +159,12 @@ class Simulator:
         
         # create connection with the hardware
         Simulator.create_connection(self, 'COM4', 115200, 1)
+
         
         set_thrust(self._ser)
 
-        # running until the mission is achieved
+        # running until the mission is achieved      
         while not self._mission:
-            
             # update position of the boat
             Simulator.__update_position(self)
 
@@ -168,18 +174,17 @@ class Simulator:
             Simulator.__update_current_waypoint(self)
 
             # find the next heading for the boat
-            heading = Simulator.find_heading(self)*180/np.pi
-
+            heading = Simulator.find_heading(self)
 
             bearing_value = bearing(self._current_pos, self._current_waypoint)
         
-            # print("BEARING", bearing_value, "between",self._current_pos, "and ", self._current_waypoint)
-
-
+            print("Heading LOS: ", heading)
+            print("Bearing_test:", bearing_value)
+        
             # print("/////////////////////", heading)
 
             # implement heading in the boat (send the command to the external hardware)
-            follow_heading(self._ser, -bearing_value)
+            follow_heading(self._ser, heading)
 
             # check whether the mission has finished (last waypoint has been reached)
             distance = call_distance(self._current_waypoint, self._current_pos)[0]
