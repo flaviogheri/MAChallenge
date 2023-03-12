@@ -27,6 +27,7 @@ def next_item(item, array: np.ndarray):
             return array[i+1]
 
 
+
 class Simulator:
     def __init__(self, data_file: str):
         """ Class for simulating ship movement.
@@ -125,11 +126,11 @@ class Simulator:
         else:
             # check whether current waypoint has been reached
             
-            print("-----", self._current_waypoint, self._current_pos)
+            # print("-----"self._current_waypoint, self._current_pos)
             
             distance = call_distance(self._current_waypoint, self._current_pos)[0] # distance in m
             print("DISTANCE TO WAYPOINT: ", distance)
-            if distance < 400:
+            if distance < 40:
                 # last waypoint becomes current waypoint
                 self._last_waypoint = self._current_waypoint
                 print("///////////// READY FOR NEXT WAYPOINT ", next_item(self._current_waypoint, self._current_track))
