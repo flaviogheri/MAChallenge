@@ -82,7 +82,7 @@ def decode_response(message):
         print(f"Speed: {speed}")
         print(f"Course: {course}")
     
-        return lat, lon, speed, course, utc_time
+        return lat, lat_dir, lon, lon_dir, speed, course, utc_time
     
     else:
         return None

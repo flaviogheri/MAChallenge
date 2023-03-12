@@ -19,7 +19,6 @@ def next_item(item, array: np.ndarray):
     return array[index + 1]
 
 
-
 class Simulator:
     def __init__(self, data_file: str):
         """ Class for simulating ship movement.
@@ -79,6 +78,8 @@ class Simulator:
         lat = float(out[0])
         long = float(out[1])
         
+        print(lat, long)
+        
     
         # update position of the boat
         self.prev_out = out
@@ -113,13 +114,12 @@ class Simulator:
     # find the next heading
     def find_heading(self):
         # if the boat just started (the first waypoint has not been reached) use [0,0] as start
+        # print(self._current_waypoint, "*******")
         if self._last_waypoint is None:
-            print("fanculoss")
-            heading= LOS_latlon(self._current_pos, np.array([0, 0]), self._current_waypoint)[0]
+            heading= LOS_latlon(self._current_pos, self._current_pos, self._current_waypoint)[0]
             return heading
             
         else:
-            print("fanculo")
             heading = LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[0]
             return heading
             
@@ -149,11 +149,11 @@ class Simulator:
             Simulator.__update_current_waypoint(self)
 
             # find the next heading for the boat
-            heading = Simulator.find_heading(self)
+            heading = Simulator.find_heading(self)*180/np.pi
+            # print("/////////////////////", heading)
 
             # implement heading in the boat (send the command to the external hardware)
             follow_heading(self._ser, heading)
-
 
             # check whether the mission has finished (last waypoint has been reached)
             distance = call_distance(self._current_waypoint, self._current_pos)[0]
