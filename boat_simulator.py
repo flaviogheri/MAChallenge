@@ -103,7 +103,7 @@ class Simulator:
         else:
             # check whether current waypoint has been reached
             distance = call_distance(self._current_waypoint, self._current_pos)[0] # distance in m
-            print("DISTANCE TO WAYPOINT: ", distance)
+            # print("DISTANCE TO WAYPOINT: ", distance)
             if distance < 1:
                 # last waypoint becomes current waypoint
                 self._last_waypoint = self._current_waypoint
@@ -111,13 +111,15 @@ class Simulator:
                 # the next waypoint in current track
                 self._current_waypoint = next_item(self._current_waypoint, self._current_track)
                 
-        print("current waypoint", self._current_waypoint)
+        # print("current waypoint", self._current_waypoint)
 
 
     # find the next heading
     def find_heading(self):
         # if the boat just started (the first waypoint has not been reached) use [0,0] as start
         # print(self._current_waypoint, "*******")
+        print("*/*/*/*/*/*/", self._current_waypoint)
+        
         if self._last_waypoint is None:
             heading= LOS_latlon(self._current_pos, self._current_pos, self._current_waypoint)[0]
             return heading
@@ -148,7 +150,7 @@ class Simulator:
 
             # find the next heading for the boat
             heading = Simulator.find_heading(self)*180/np.pi
-            print("/////////////////////", heading)
+            # print("/////////////////////", heading)
 
             # implement heading in the boat (send the command to the external hardware)
             follow_heading(self._ser, heading)
