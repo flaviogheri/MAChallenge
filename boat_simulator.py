@@ -65,7 +65,6 @@ class Simulator:
         """ Update current position from external readings of GPS."""
         # read current input from serial
         ser_message = self._ser.readline()
-        # print(ser_message)
         
         if decode_response(ser_message) == None:
             out = self.prev_out
@@ -76,14 +75,13 @@ class Simulator:
     
         # extract lat and long
         lat = float(out[0])
-        long = float(out[1])
+        long = float(out[2])
         
-        print(lat, long)
-        
-    
         # update position of the boat
         self.prev_out = out
         self._current_pos = np.array([lat, long])
+        print("current position: ", self._current_pos)
+        
         
     def __update_current_track(self):
         """ Change current track when current waypoint becomes last waypoint in the track """
@@ -99,17 +97,22 @@ class Simulator:
 
     def __update_current_waypoint(self):
         """ Update current waypoint """
+        
         if self._current_waypoint is None:
             self._current_waypoint = self._current_track[0]
         else:
             # check whether current waypoint has been reached
-            distance = call_distance(self._current_waypoint, self._current_pos)[0]
+            distance = call_distance(self._current_waypoint, self._current_pos)[0] # distance in m
+            print("DISTANCE TO WAYPOINT: ", distance)
             if distance < 1:
                 # last waypoint becomes current waypoint
                 self._last_waypoint = self._current_waypoint
 
                 # the next waypoint in current track
                 self._current_waypoint = next_item(self._current_waypoint, self._current_track)
+                
+        print("current waypoint", self._current_waypoint)
+
 
     # find the next heading
     def find_heading(self):
@@ -126,16 +129,11 @@ class Simulator:
 
     def simulate(self):
         """The main loop running the simulation."""
+        
         # create connection with the hardware
-        
-        print("create connection with the hardware")
-
         Simulator.create_connection(self, 'COM4', 115200, 1)
-        print("Completed serial comms")
-        
         
         set_thrust(self._ser)
-        print("thrust initiation")
 
         # running until the mission is achieved
         while not self._mission:
@@ -150,7 +148,7 @@ class Simulator:
 
             # find the next heading for the boat
             heading = Simulator.find_heading(self)*180/np.pi
-            # print("/////////////////////", heading)
+            print("/////////////////////", heading)
 
             # implement heading in the boat (send the command to the external hardware)
             follow_heading(self._ser, heading)
@@ -161,6 +159,3 @@ class Simulator:
                 self._mission = True
                 
                 self._ser.close()
-
-
-
