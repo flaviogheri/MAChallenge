@@ -140,13 +140,13 @@ def LOS_latlon(position: np.ndarray,
     # losy = yproj+(los_delta)*sin(alpha) - position.y
     los_lat = call_distance(TargetP, position)[1]
 
-    # LOS heading(Desired heading angle)
-    los_heading = atan2((los_lat), (los_lon))
+    # LOS heading(Desired heading angle in degrees)
+    los_heading = atan2((los_lon), (los_lat))
 
-    if los_heading < -pi:
-        los_heading += pi
-    elif los_heading > pi:
-        los_heading -= pi
+    if los_heading < 0:
+        los_heading += 360
+    elif los_heading > 360:
+        los_heading -= 360
 
     if debug:
         print('Alpha: ', alpha)
