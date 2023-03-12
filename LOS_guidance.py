@@ -16,16 +16,16 @@ def DMM_to_DEG(WP_DMM):
     lon = WP_DMM[1]
 
     # For latitude
-    DMM_lat_int,DMM_lat_deci=math.modf(lat)
-    DMM_lat = str(DMM_lat_int).rjust(4, '0')+str(DMM_lat_deci).rjust(6, '0')
+    DMM_lat_deci,DMM_lat_int=math.modf(lat)
+    DMM_lat = str(int(DMM_lat_int)).rjust(4, '0')+str(round(DMM_lat_deci,6)).ljust(8, '0')[1:]
     D1_lat = round(float(str(DMM_lat[0] + DMM_lat[1])))  # Degrees, first two digits
     MM_lat = round(float(DMM_lat[2] + DMM_lat[3])) + round(math.modf(lat)[0], 6)  # Minutes
     D2_lat = round(MM_lat / 60, 6)  # Convert minute to degrees
     DEG_lat = D1_lat + D2_lat
 
     # For longitude
-    DMM_lon_int,DMM_lon_deci=math.modf(lon)
-    DMM_lon = str(DMM_lon_int).rjust(5, '0')+str(DMM_lon_deci).rjust(6, '0')
+    DMM_lon_deci,DMM_lon_int=math.modf(lon)
+    DMM_lon = str(int(DMM_lon_int)).rjust(5, '0')+str(round(DMM_lon_deci,6)).ljust(8, '0')[1:]
     D1_lon = round(float(str(DMM_lon[0] + DMM_lon[1] + DMM_lon[2])))  # Degrees, first three digits
     MM_lon = round(float(DMM_lon[3] + DMM_lon[4])) + round(math.modf(lon)[0], 6)  # Minutes
     D2_lon = round(MM_lon / 60, 6)  # Convert minute to degrees
