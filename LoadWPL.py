@@ -2,7 +2,6 @@
 Created by Daniel-Iosif Trubacs for the MAC team on 8 March 2023. The purpose of this module is to load an
 array of Waypoints from a .txt and arrange them in different tracks. A track should be a simple numpy array
 containing the waypoints (in order) that should be followed). The data in .txt file should be in the NMEA format.
-skaslasklasklasklklsklaskaskasklakl
 """
 
 import numpy as np
