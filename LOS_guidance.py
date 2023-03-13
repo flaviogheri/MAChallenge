@@ -6,7 +6,7 @@ calculate the desired heading from current postion, previous waypoint and next w
 import math
 import numpy as np
 from numpy.linalg import norm
-from math import sqrt, cos, sin, atan2, pi
+from math import sqrt, cos, sin, atan2, pi, degrees
 
 
 # Convert the unit of Degree Minutes.Minutes to Degrees
@@ -171,7 +171,7 @@ def LOS_latlon(position: np.ndarray,
     los_lat = call_distance(TargetP, position)[1]
 
     # LOS heading(Desired heading angle in degrees)
-    los_heading = atan2((los_lon), (los_lat))
+    los_heading = degrees(atan2((los_lon), (los_lat)))
 
     if los_heading < 0:
         los_heading += 360
