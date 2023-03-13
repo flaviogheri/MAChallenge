@@ -54,7 +54,7 @@ while True:
                 arrowprops=dict(arrowstyle="->"))
     # Redraw the plot and pause briefly to allow the plot to update
     plt.text(6, 9, f"Heading: {theta[t]:.2f} rad")
-    plt.text(6, 8, f"Speed: {speed[t]:.2f} mps")
+    plt.text(6, 8, f"Speed: {speed[t]:.2f} kts")
     plt.text(6, 7, f"Cross Track Error: {error[t]:.2f} m")
 
     plt.draw()
