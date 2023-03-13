@@ -8,8 +8,8 @@ update track and waypoint -> find heading -> set speed -> update current positio
 
 import numpy as np
 from LoadWPL import load_wpl
-from LOS_guidance import LOS_latlon, call_distance, DMM_to_DEG
-from ShipSimCom import follow_heading, set_thrust, decode_response
+from LOS_guidance import LOS_latlon, call_distance
+from ShipSimCom import follow_heading, set_thrust, enter_heading_mode, decode_response
 import serial
 from bearing_test import bearing
 from Speed_controller import clamp, PID
@@ -26,7 +26,6 @@ def next_item(item, array: np.ndarray):
     for i in range(array.shape[0]):
         if compare_points(item, array[i]):
             return array[i+1]
-
 
 
 class Simulator:
@@ -71,7 +70,6 @@ class Simulator:
 
         self._ser = serial.Serial(port=n_port, baudrate=n_baudrate, timeout=n_timeout)
              
-        
 
     def __update_position(self):
         """ Update current position from external readings of GPS."""
@@ -88,8 +86,8 @@ class Simulator:
         # extract lat and long
         lat = float(out[0])
         long = float(out[2])
-        lat_dir = str(out[1])
-        lon_dir = str(out[3])
+        # lat_dir = str(out[1])
+        # lon_dir = str(out[3])
         # update position of the boat
         self.prev_out = out
         self._current_pos = np.array([lat, long])
@@ -119,6 +117,7 @@ class Simulator:
             else:
                 x=0
                 #print("Boat hasnt reached last waypoint")
+
 
     def __update_current_waypoint(self):
         """ Update current waypoint """
@@ -163,7 +162,6 @@ class Simulator:
         # if the boat just started (the first waypoint has not been reached) use [0,0] as start
         # print(self._current_waypoint, "*******")
         # print("current_waypoint", self._current_waypoint)
-        
         if self._last_waypoint is None:
             heading = LOS_latlon(self._current_pos, self.initial_pos, self._current_waypoint)[0]
             cross_track_error = abs(LOS_latlon(self._current_pos, self.initial_pos, self._current_waypoint)[1])
@@ -190,9 +188,10 @@ class Simulator:
         
         # create connection with the hardware
         Simulator.create_connection(self, 'COM4', 115200, 1)
-
         
         set_thrust(self._ser)
+        
+        enter_heading_mode(self._ser)
 
         # running until the mission is achieved      
         while not self._mission:

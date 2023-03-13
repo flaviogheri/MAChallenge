@@ -3,7 +3,6 @@ import serial
 
 # establish serial communication
 ser = serial.Serial(port="COM4", baudrate=115200, timeout=1)
-print("completed serial comms")
 
 def NMEA_CRC(msg):
     """ Calculate the NMEA CRC checksum for a given message """
@@ -33,13 +32,16 @@ def set_thrust(ser, speed=5, thrust=80):
 
 
 
-def follow_heading(ser, hdg):
+def enter_heading_mode(ser):
     """takes as input the desired heading and sets a course for that heading"""
     #-----ENTER AUTO HEADING MODE--------
     cmd = "$CCAPM,7,64,0,80"
     checksum = NMEA_CRC(cmd) # calculate checksum of desired command
     full_cmd = f"{cmd}*{checksum}\r\n" # add checksum to command
     ser.write(full_cmd.encode()) # write to 
+
+def follow_heading(ser, hdg):
+    """takes as input the desired heading and sets a course for that heading"""
     
     # ----- FOLLOW DESIRED COMMAND-------
     cmd = f"$CCHSC,{hdg}, T,,"
@@ -55,7 +57,6 @@ def signal_updates():
     ser.write(full_cmd.encode())
 
 
-
 def decode_response(message):
     """takes as input the message to decode and returns lat, lon, speed, course, utc_time"""
     # decode the byte string to Unicode string
@@ -67,7 +68,6 @@ def decode_response(message):
     message_id = params[0][1:] # get the message type
 
     if message_id == "GPRMC" and len(params) == 14: # if it is a GPS update
-    
         utc_time = params[1]
         lat = params[3]
         lat_dir = params[4]

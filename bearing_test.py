@@ -21,7 +21,7 @@ def bearing(point1, point2):
     x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(-(lon2 - lon1))
 
     bearing = math.degrees(math.atan2(y, x))
-    return (bearing + 360) % 360
+    return -(bearing + 360) % 360
 
 
 
