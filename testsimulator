@@ -15,6 +15,7 @@ plt.ion()
 data_x = np.arange(1, 10, 0.1)
 data_y = np.arange(1, 10, 0.1)
 theta = np.arange(1, 31.4, 0.1)
+error = np.arange(1, 31.4, 0.1)
 
 # Initialize the time and frequency variables
 t = 0
@@ -51,11 +52,15 @@ while True:
     plt.annotate("", xy=(data_x[t]+np.cos(theta[t]), data_y[t]+np.sin(theta[t])), xytext=(data_x[t], data_y[t]),
                 arrowprops=dict(arrowstyle="->"))
     # Redraw the plot and pause briefly to allow the plot to update
+    plt.text(6, 9, f"Heading: {theta[t]:.2f} rad")
+    plt.text(6, 8, f"Cross Track Error: {error[t]:.2f} m")
+
     plt.draw()
     plt.pause(0.01)
 
     # Increment the time variable
     t += 1
+    
 
     # Check if a keyboard interrupt event has occurred
     if not plt.fignum_exists(fig.number):
