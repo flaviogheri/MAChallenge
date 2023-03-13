@@ -3,19 +3,43 @@ Created by Daniel-Iosif Trubacs for the MAC team on 8 March 2023. The purpose of
 certain functions to help with the ship movement visualization
 """
 
-import numpy as np
+import math
 from matplotlib import pyplot as plt
 import numpy as np
 
 
-# Create an empty plot with axis labels
-fig, ax = plt.subplots()
-ax.set_xlabel('Time (s)')
-ax.set_ylabel('Amplitude')
+def animate_ship(current_position: np.ndarray, current_heading: np.ndarray, figure, axis):
+    """ Visual feedback for the ship movement
 
-# Set the x-axis limits and turn on interactive plotting
-plt.xlim([0, 10])
-plt.ion()
+    Args:
+        current_position:
+        current_heading:
+        waypoints:
+
+    Returns:
+
+    """
+    axis.set_xlabel('Latitude')
+    axis.set_ylabel('Longitude')
+
+    # x and y limits for the plot
+    plt.ylim([0, 10])
+    plt.xlim([0, 10])
+
+    # plot the position of the ship
+    axis.plot(current_position[0], current_position[1], color='r', markersize=10, marker='1')
+
+    # plot the heading of the ship
+    axis.annotate("", xy=(current_position[0] + np.cos(current_heading), current_position[1] + np.sin(current_heading)),
+                xytext=(current_position[0], current_position[1]), arrowprops=dict(arrowstyle="->"))
+
+    # draw the  plot and pause briefly to allow the plot to update
+    plt.draw()
+    plt.pause(0.01)
+
+    # clear the plot to allow for a live update
+    axis.cla()
+
 
 # Create an empty list to store the data
 data_x = np.arange(1, 10, 0.1)
@@ -26,49 +50,19 @@ theta = np.arange(1, 31.4, 0.1)
 t = 0
 freq = 1
 
-# Define a function to handle the keyboard interrupt event
-def on_key_press(event):
-    if event.key == 'p':
-        fig.canvas.stop_event_loop()
-
-# Connect the keyboard interrupt handler to the plot window
-fig.canvas.mpl_connect('key_press_event', on_key_press)
-
-# waypoint
-wp = [1, 5]
+# turn on interactive plotting
+plt.ion()
 
 # Continuously generate new data and update the plot
 while True:
+    # setup of the plot
+    fig, ax = plt.subplots()
 
-    # Generate a new point on the sine wave
-    y = math.sin(2 * math.pi * freq * t)
-
-    # Add the new point to the list
-
-    # Update the plot with the new data
-    # ax.plot(data, color='blue')
-    plt.ylim([0, 10])
-    plt.xlim([0, 10])
-    ax.plot(wp[0], wp[1], marker = 'o', markersize = 10)
-    ax.plot(data_x[t],data_y[t], color = 'r', markersize = 10, marker = '1')
-    ax.plot([wp[0], data_x[t]], [wp[1], data_y[t]], linestyle='dashed')
-
-    #plt.arrow(data_x[t],data_y[t], 0.5, 0.5, head_length=0.5)
-    plt.annotate("", xy=(data_x[t]+np.cos(theta[t]), data_y[t]+np.sin(theta[t])), xytext=(data_x[t], data_y[t]),
-                arrowprops=dict(arrowstyle="->"))
-    # Redraw the plot and pause briefly to allow the plot to update
-    plt.draw()
-    plt.pause(0.01)
+    animate_ship(current_position=np.array([data_x[t], data_y[t]]), current_heading=theta[t], figure=fig, axis=ax)
 
     # Increment the time variable
     t += 1
 
-    # Check if a keyboard interrupt event has occurred
-    if not plt.fignum_exists(fig.number):
-        break
-
-    # Clear the plot to allow for a live update
-    ax.cla()
 
 # Turn off interactive plotting
 plt.ioff()
