@@ -17,7 +17,7 @@ def NMEA_CRC(msg):
     return '%X' % crc
 
 
-def set_thrust(ser, speed=5):
+def set_thrust(ser, speed=5, thrust=80):
     "takes as input the desired speed in kts and sends this to the autopilot"
 
     cmd = f"$CCAPT,M,{speed},K"
@@ -25,7 +25,7 @@ def set_thrust(ser, speed=5):
     full_cmd = f"{cmd}*{checksum}\r\n" # add checksum to command
     ser.write(full_cmd.encode()) # write to 
     
-    cmd = "$CCTHD,84.0,0,0,0,0,0"
+    cmd = f"$CCTHD,{thrust},0,0,0,0,0"
     checksum = NMEA_CRC(cmd) # calculate checksum of desired command
     full_cmd = f"{cmd}*{checksum}\r\n" # add checksum to command
     ser.write(full_cmd.encode()) # write to 
@@ -76,11 +76,11 @@ def decode_response(message):
         speed = params[7] # speed over ground in kts
         course = params[8]
         
-        print(f"UTC time: {utc_time}")
-        print(f"Latitude: {lat} {lat_dir}")
-        print(f"Longitude: {lon} {lon_dir}")
-        print(f"Speed: {speed}")
-        print(f"Course: {course}")
+        # print(f"UTC time: {utc_time}")
+        # print(f"Latitude: {lat} {lat_dir}")
+        # print(f"Longitude: {lon} {lon_dir}")
+        # print(f"Speed: {speed}")
+        # print(f"Course: {course}")
     
         return lat, lat_dir, lon, lon_dir, speed, course, utc_time
     

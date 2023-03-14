@@ -190,7 +190,7 @@ def LOS_latlon(position: np.ndarray,
         print('los_heading: ', los_heading)
 
     # Return LOS heading angle and cross track error
-    print(los_heading)
+    #print(los_heading)
     return np.array([los_heading, los_e])
     
 
