@@ -8,7 +8,7 @@ update track and waypoint -> find heading -> set speed -> update current positio
 
 import numpy as np
 from LoadWPL import load_wpl
-from LOS_guidance import LOS_latlon, call_distance
+from LOS_guidance import LOS_latlon, call_distance, DMM_to_DEG
 from ShipSimCom import follow_heading, set_thrust, enter_heading_mode, decode_response
 import serial
 from bearing_test import bearing
@@ -61,7 +61,7 @@ class Simulator:
         
         self.prev_out = np.zeros(5)
         
-        self.initial_pos = [5050.700, 44.773] 
+        self.initial_pos = [5050.708799, 44.755897] 
 
     # a function to create connection with external hardware
     def create_connection(self, n_port: str, n_baudrate: int, n_timeout: int):
@@ -105,7 +105,7 @@ class Simulator:
             # the index of next track in the tracks list
             next_track_index = self.track_list.index(self._current_track)
 
-            # check whether this is the last track
+            # check whether this is the last trackA
             if next_track_index == len(self.track_list) -1:
                 print("This is the last track")
 
@@ -123,29 +123,34 @@ class Simulator:
             self._current_waypoint = self._current_track[0]
         else:
             # check whether current waypoint has been reached
+            
+            #Convert format of waypoint from DMM to DEG 
+            current_waypoint_DEG = DMM_to_DEG(self._current_waypoint)
+            current_pos_DEG = DMM_to_DEG(self._current_pos)
+            #print("^^^^^^^^^^",self._last_waypoint)
+            if self._last_waypoint is not None:
+                last_waypoint_DEG = DMM_to_DEG(self._last_waypoint)
+            elif self._last_waypoint is None:
+                last_waypoint_DEG = DMM_to_DEG(self.initial_pos)
+
             # print("-----"self._current_waypoint, self._current_pos)
-            distance = call_distance(self._current_waypoint, self._current_pos)[0] # distance in m
-            print("DISTANCE TO WAYPOINT: ", distance)
-            if distance < 3:
+            distance_to_wp = call_distance(current_waypoint_DEG, current_pos_DEG)[0] # distance in m
+            distance_from_last_wp = call_distance(last_waypoint_DEG, current_pos_DEG)[0] # distance in m
+            #print("DISTANCE TO WAYPOINT: ", distance_to_wp)
+            if distance_to_wp < 15 or distance_from_last_wp < 3:
+                #print("1kt")
                 # last waypoint becomes current waypoint
-                self._last_waypoint = self._current_waypoint
-
-                # check whether the current waypoint is not the last waypoint int the track:
-                if compare_points(self._current_waypoint, self._current_track[-1]):
-                    # update track as the boat reached the end of the first track
-                    Simulator.__update_current_track(self)
-
-                    # update the current waypoint as the first point in the current track
-                    self._current_waypoint = self._current_track[0]
-
-                    # current waypoint becomes
-                else:
-                    # current waypoint simply becomes next waypoint in the current track
-                    print("///////////// READY FOR NEXT WAYPOINT ", next_item(self._current_waypoint, self._current_track))
+                set_thrust(self._ser, thrust=15)
+                if distance_to_wp < 5:
+                    self._last_waypoint = self._current_waypoint
+                    # print("///////////// READY FOR NEXT WAYPOINT ", next_item(self._current_waypoint, self._current_track))
                     # the next waypoint in current track
                     self._current_waypoint = next_item(self._current_waypoint, self._current_track)
-
-        print("CURRENT WAYPOINT: ", self._current_waypoint)
+            else:
+                #print("5kts")
+                set_thrust(self._ser, thrust=80)
+                
+                
 
 
     # find the next heading
@@ -153,13 +158,27 @@ class Simulator:
         # if the boat just started (the first waypoint has not been reached) use [0,0] as start
         # print(self._current_waypoint, "*******")
         # print("current_waypoint", self._current_waypoint)
+        
         if self._last_waypoint is None:
             heading = LOS_latlon(self._current_pos, self.initial_pos, self._current_waypoint)[0]
+            cross_track_error = abs(LOS_latlon(self._current_pos, self.initial_pos, self._current_waypoint)[1])
+            # print("initial_pos",self.initial_pos)
+            if cross_track_error > 3:
+                print("cross track error is over")
+            else:
+                print("cross track error is within 3")
             return heading
+            
             
         else:
             heading = LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[0]
+            cross_track_error = LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[1]
+            if cross_track_error > 3:
+                print("cross track error is over")
+            else:
+                print("cross track error is within 3")
             return heading
+        
 
     def simulate(self):
         """The main loop running the simulation."""
@@ -184,16 +203,14 @@ class Simulator:
             # find the next heading for the boat
             heading = Simulator.find_heading(self)
 
-            bearing_value = bearing(self._current_pos, self._current_waypoint)
-        
-            print("Heading LOS: ", heading)
-            print("Bearing_test:", bearing_value)
+            # bearing_value = bearing(self._current_pos, self._current_waypoint)
+
         
             # print("/////////////////////", heading)
 
             # implement heading in the boat (send the command to the external hardware)
             
-            follow_heading(self._ser, bearing_value)
+            follow_heading(self._ser, -heading)
 
             # check whether the mission has finished (last waypoint has been reached)
             distance = call_distance(self._current_waypoint, self._current_pos)[0]
