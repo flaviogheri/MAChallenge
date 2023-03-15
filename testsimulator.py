@@ -41,7 +41,7 @@ while True:
 
     # Add the new point to the list
 
-    # Update the plot with the new data
+    # Update the plot with the 
     # ax.plot(data, color='blue')
     plt.ylim([0, 10])
     plt.xlim([0, 10])

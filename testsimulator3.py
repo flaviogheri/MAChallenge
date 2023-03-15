@@ -1,5 +1,3 @@
-
-
 import math
 from math import radians, degrees, sin, cos, sqrt, atan2
 import matplotlib.pyplot as plt
@@ -7,50 +5,29 @@ import numpy as np
 from LoadWPL import load_wpl
 from LOS_guidance import DMM_to_DEG
 
-def range_converter(latitude, longitude, range_km):
-    # Convert latitude and longitude to radians
-    lat1 = radians(latitude)
-    lon1 = radians(longitude)
-
-    # Earth's radius in kilometers
-    radius = 6371.01
-
-    # Calculate the angular distance in radians
-    angular_distance = range_km / radius
-
-    # Calculate the new latitude in degrees
-    lat2 = degrees(math.asin(sin(lat1) * cos(angular_distance) +
-                 cos(lat1) * sin(angular_distance) * cos(0)))
-
-    # Calculate the new longitude in degrees
-    lon2 = degrees(lon1 + atan2(sin(0) * sin(angular_distance) * cos(lat1),
-                     cos(angular_distance) - sin(lat1) * sin(lat2)))
-
-    return lat2, lon2
-
-
 # Define the initial coordinate and range
 init_lat = 50.845 #40.7128
 init_lon = 0.7459 #-74.0060
-
-
 
 wp = [[init_lat, init_lon]]  # initialize with the initial coordinate
 
 tracks = load_wpl('data.txt')
 for track in tracks:
     for waypoint_dmm in track:
-        #wp.append([DMM_to_DEG(waypoint_dmm)[0], DMM_to_DEG(waypoint_dmm)[1]])  append the waypoint as a list of two coordinates
-        wp.append(DMM_to_DEG(waypoint_dmm))
-
-print(wp)
-
-
-
+        wp.append([DMM_to_DEG(waypoint_dmm)[0], DMM_to_DEG(waypoint_dmm)[1]])  
 # Create an empty plot with axis labels
 fig, ax = plt.subplots()
 ax.set_xlabel('Longitude')
 ax.set_ylabel('Latitude')
+wp = np.array(wp)
+print(wp)
+
+lat_range = np.max(wp[:,0]) - np.min(wp[:,0])
+lon_range = np.max(wp[:,1]) - np.min(wp[:,1])
+
+# Add 10% to the range
+lat_range *= 1.1
+lon_range *= 1.1
 
 # Set the axis limits and turn on interactive plotting
 plt.ion()
@@ -61,6 +38,7 @@ data_lon = np.arange(init_lon - lon_range, init_lon + lon_range, 0.01)
 theta = np.arange(1, 31.4, 0.1)
 speed = np.arange(1, 31.4, 0.1)
 error = np.arange(1, 31.4, 0.1)
+
 
 # Initialize the time and frequency variables
 t = 0
@@ -80,10 +58,9 @@ fig.canvas.mpl_connect('key_press_event', on_key_press)
 for point in wp:
         ax.plot(point[0], point[1], marker='o', markersize=10)
 
-
 # Add the new point to the list
-plt.ylim([init_lat - lat_range/2, init_lat + lat_range/2])
-plt.xlim([init_lon - lon_range/2, init_lon + lon_range/2])
+plt.ylim([init_lat - lat_range, init_lat + lat_range])
+plt.xlim([init_lon - lon_range, init_lon + lon_range])
 
 # Continuously generate new data and update the plot
 while True:
@@ -116,6 +93,7 @@ while True:
 
     # Clear the plot to allow for a live update
     ax.cla()
+
 # Turn off interactive plotting
 plt.ioff()
 
