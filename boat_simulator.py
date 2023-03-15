@@ -8,7 +8,7 @@ update track and waypoint -> find heading -> set speed -> update current positio
 
 import numpy as np
 from LoadWPL import load_wpl
-from LOS_guidance import LOS_latlon, call_distance, DMM_to_DEG
+from LOS_guidance import LOS_latlon, call_distance
 from ShipSimCom import follow_heading, set_thrust, enter_heading_mode, decode_response
 import serial
 from bearing_test import bearing
@@ -94,7 +94,7 @@ class Simulator:
         
         
     def __update_current_track(self):
-        """ Change current track when current waypoint becomes last waypoint in the track """
+        """ Change current track to the next track in the in the list"""
         
         # print("Within __update_current_track function-------------")
         # print("self._current_track = ", self._current_track)
@@ -102,17 +102,18 @@ class Simulator:
             # print("******", self._current_track)
             self._current_track = self.track_list[0]
         else:
-            # print("(((((((((((: ", self._current_waypoint)
-            # print("((: ", self._current_track[-1])
-            # check whether current waypoint is the last waypoint in the track
-            if np.array_equal(self._current_waypoint, self._current_track[-1]):
-                # the index of next track in the tracks list
-                next_track_index = self.track_list.index(self._current_track)
+            # the index of next track in the tracks list
+            next_track_index = self.track_list.index(self._current_track)
+
+            # check whether this is the last track
+            if next_track_index == len(self.track_list) -1:
+                print("This is the last track")
+
+            else:
                 # change current track to next track
                 self._current_track = self.track_list[next_track_index]
                 # print("+++++++++++++ ", self._current_track)
-            else:
-                print("Boat hasnt reached last waypoint")
+
 
 
     def __update_current_waypoint(self):
@@ -122,23 +123,29 @@ class Simulator:
             self._current_waypoint = self._current_track[0]
         else:
             # check whether current waypoint has been reached
-            
-            #Convert format of waypoint from DMM to DEG 
-            current_waypoint_DEG = DMM_to_DEG(self._current_waypoint)
-            current_pos_DEG = DMM_to_DEG(self._current_pos)
-            distance = call_distance(current_waypoint_DEG, current_pos_DEG)[0] # distance in m
-
-            
             # print("-----"self._current_waypoint, self._current_pos)
-            # distance = call_distance(self._current_waypoint, self._current_pos)[0] # distance in m
+            distance = call_distance(self._current_waypoint, self._current_pos)[0] # distance in m
             print("DISTANCE TO WAYPOINT: ", distance)
             if distance < 3:
                 # last waypoint becomes current waypoint
                 self._last_waypoint = self._current_waypoint
-                print("///////////// READY FOR NEXT WAYPOINT ", next_item(self._current_waypoint, self._current_track))
-                # the next waypoint in current track
-                self._current_waypoint = next_item(self._current_waypoint, self._current_track)
-            print("CURRENT WAYPOINT: ", self._current_waypoint)
+
+                # check whether the current waypoint is not the last waypoint int the track:
+                if compare_points(self._current_waypoint, self._current_track[-1]):
+                    # update track as the boat reached the end of the first track
+                    Simulator.__update_current_track(self)
+
+                    # update the current waypoint as the first point in the current track
+                    self._current_waypoint = self._current_track[0]
+
+                    # current waypoint becomes
+                else:
+                    # current waypoint simply becomes next waypoint in the current track
+                    print("///////////// READY FOR NEXT WAYPOINT ", next_item(self._current_waypoint, self._current_track))
+                    # the next waypoint in current track
+                    self._current_waypoint = next_item(self._current_waypoint, self._current_track)
+
+        print("CURRENT WAYPOINT: ", self._current_waypoint)
 
 
     # find the next heading
@@ -153,7 +160,6 @@ class Simulator:
         else:
             heading = LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[0]
             return heading
-            
 
     def simulate(self):
         """The main loop running the simulation."""
@@ -162,7 +168,6 @@ class Simulator:
         Simulator.create_connection(self, 'COM4', 115200, 1)
         
         set_thrust(self._ser)
-        print("----------------")
         
         enter_heading_mode(self._ser)
 
@@ -188,7 +193,7 @@ class Simulator:
 
             # implement heading in the boat (send the command to the external hardware)
             
-            follow_heading(self._ser, heading)
+            follow_heading(self._ser, bearing_value)
 
             # check whether the mission has finished (last waypoint has been reached)
             distance = call_distance(self._current_waypoint, self._current_pos)[0]
