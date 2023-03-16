@@ -20,6 +20,17 @@ def next_item(item, array: np.ndarray):
         if compare_points(item, array[i]):
             return array[i+1]
 
+wayp = [[5050.710799,   44.755897], [5050.732397,   44.755897], [5050.732397,   44.738794],
+        [5050.710799,   44.738794], [5050.710799,   44.721691], [5050.732397,   44.721691],
+        [5050.732397,   44.704588], [5050.710799,   44.704588]]
+ 
+def find_waypoint_name(waypoint, waypoints_list=wayp):
+    for i in range(len(waypoints_list)):
+        if compare_points(waypoint, waypoints_list[i]):
+            return 'WPT'+str(i+1)
+    
+    return 'None'
+
 
 class local_Simulator:
     def __init__(self, data_file: str):
@@ -36,6 +47,8 @@ class local_Simulator:
 
         # the current speed of the boat, should be updated each time in the loop
         self._current_speed = None
+
+        self._current_error = None
 
         # the current serial object (used to connect to external hardware)
         self._ser = None
@@ -108,8 +121,6 @@ class local_Simulator:
                 self._current_track = self.track_list[next_track_index]
                 # print("+++++++++++++ ", self._current_track)
 
-
-
     def __update_current_waypoint(self):
         """ Update current waypoint """
         
@@ -134,12 +145,22 @@ class local_Simulator:
             if distance_to_wp < 15 or distance_from_last_wp < 3:
                 #print("1kt")
                 # last waypoint becomes current waypoint
-                set_thrust(self._ser, thrust=15)
-                if distance_to_wp < 5:
+                set_thrust(self._ser, thrust=10)
+                
+            if distance_to_wp < 5:
+                    print("distance to current is smaller than 5/ change to next waypoint")
+                    time.sleep(2)
+                    # change last waypoint to current waypoint
                     self._last_waypoint = self._current_waypoint
-                    # print("///////////// READY FOR NEXT WAYPOINT ", next_item(self._current_waypoint, self._current_track))
-                    # the next waypoint in current track
-                    self._current_waypoint = next_item(self._current_waypoint, self._current_track)
+                    
+                    # check whether the current point is the last in the current track
+                    if compare_points(self._current_waypoint, self._current_track[-1]):
+                        Simulator.__update_current_track(self)
+                        self._current_waypoint = self._current_track[0]
+                        print("last waypoint in the track reached")
+                    else:
+                        self._current_waypoint = next_item(self._current_waypoint, self._current_track)
+                        print("changing to next waypoint/ still in current track")
             else:
                 #print("5kts")
                 set_thrust(self._ser, thrust=80)
@@ -186,39 +207,69 @@ class local_Simulator:
 
         localsim.init_plot()
 
+        # average for cross track error
+        cros_error_average = 0
+
+        # number of values of cross error recorded
+        n_cross = 0
+
+        # start counting cross track error 
+        start_cross = False
+
         # running until the mission is achieved      
         while not self._mission:
-            # update position of the boat
+             # update position of the boat
             Simulator.__update_position(self)
 
             # update current track and waypoint
-            Simulator.__update_current_track(self)
+           # Simulator.__update_current_track(self)
             # print("--------------", Simulator.__update_current_track(self))
             Simulator.__update_current_waypoint(self)
+            
+            #Convert format of waypoint from DMM to DEG 
+            current_waypoint_DEG = DMM_to_DEG(self._current_waypoint)
+            current_pos_DEG = DMM_to_DEG(self._current_pos)
+            #cross_track_error = LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[1]
+            
+            # check whether the mission has finished (last waypoint has been reached)
+            distance = call_distance(current_waypoint_DEG, current_pos_DEG)[0]
+            
+            print('current waypoint:', self._current_waypoint)
+            print('current pos:', self._current_pos)
+            print(find_waypoint_name(self._current_waypoint))
+            print('current track:', self.track_list.index(self._current_track))
+            print('distance to current waypoint:', distance)
+            #print('cross track error:', cross_track_error)
 
             # find the next heading for the boat
-            heading = Simulator.find_heading(self)
-            
+            heading, simulator.current_error = Simulator.find_heading(self)
 
             # bearing_value = bearing(self._current_pos, self._current_waypoint)
-
-        
-            # print("/////////////////////", heading)
-
-            # implement heading in the boat (send the command to the external hardware)
+            # find average cross track error
+            if compare_points(self._current_waypoint, self._current_track[1]):
+                start_cross = True
             
+            # start counting cross track err
+            if start_cross:
+             cros_error_average += cross_t_err
+             n_cross += 1
+            
+             print('average cross track error:', cros_error_average/n_cross)
             
             
             
             local_sim.run_plot(self._current_pos, heading, self.current_speed, self.current_error)
 
             
-            
 
-            # check whether the mission has finished (last waypoint has been reached)
-            distance = call_distance(self._current_waypoint, self._current_pos)[0]
-            if (self._current_waypoint == self.track_list[-1][-1]).all() and distance < 1:
-                self._mission = True
-
-                local_sim.end_plot()
-                self._ser.close()
+            # check whether current waypoint is the last waypoint in the last track
+            if compare_points(self._current_waypoint, self.track_list[-1][-1]):
+                print("This is the last waypoint")
+                if distance < 5:
+                  print("The last waypoint in the last track has been reached")
+                  local_sim.end_plot()
+                  self._ser.close()
+                  self._mission = True
+                else:
+                    print('Distance to last waypoint:', distance)
+                
