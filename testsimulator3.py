@@ -72,7 +72,7 @@ while True:
         ax.plot(point[1], point[0], color= 'red', marker='x', markersize=10)
 
     # Redraw the plot and pause briefly to allow the plot to update
-    # plt.text(init_lon + lon_range * 0.6, init_lat + lat_range * 0.9, f"Heading: {theta[t]:.2f} rad")
+    plt.text(init_lon + lon_range * 0.6, init_lat + lat_range * 0.9, f"Heading: {theta[t]:.2f} rad")
     plt.text(init_lon + lon_range * 0.6, init_lat + lat_range * 0.8, f"Speed: {speed[t]:.2f} kts")
     plt.text(init_lon + lon_range * 0.6, init_lat + lat_range * 0.7, f"Cross Track Error: {error[t]:.2f} m")
 
