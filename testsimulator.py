@@ -19,8 +19,9 @@ for track in tracks:
 waypoints_list = np.array(waypoints_list)
 
 # Create an empty list to store the data
-lat_data = np.arange(50.84514, 50.84518, 0.000001)
+lat_data = np.arange(50.845140, 50.84518, 0.0000001)
 lon_data = np.arange(0.745076, 0.745930, 0.000001)
+
 
 # create random data for speed, error and heading
 theta = np.arange(1, 31.4, 0.1)
@@ -33,14 +34,12 @@ initial_position = np.array(DMM_to_DEG(np.array([5050.708799, 44.755897])))
 # the range for lat and long for the waypoints and add 10% to it
 range_list = np.concatenate((waypoints_list, np.expand_dims(initial_position, axis=0)))
 
-lat_range = 2.5*(np.max(range_list[:,0]) - np.min(range_list[:,0]))
-lon_range = 2.5*(np.max(range_list[:,1]) - np.min(range_list[:,1]))
-
-
+lat_range = 2.5*(np.max(range_list[:, 0]) - np.min(range_list[:, 0]))
+lon_range = 2.5*(np.max(range_list[:, 1]) - np.min(range_list[:,1 ]))
 
 # lat limits for the plot and add 15%
-lat_limit = np.array([np.max(range_list[:,0]) - lat_range/2, np.min(range_list[:,0]) + lat_range/2])
-lon_limit = np.array([np.max(range_list[:,1]) - lon_range/2, np.min(range_list[:,1]) + lon_range/2])
+lat_limit = np.array([np.max(range_list[:, 0]) - lat_range/2, np.min(range_list[:, 0]) + lat_range/2])
+lon_limit = np.array([np.max(range_list[:, 1]) - lon_range/2, np.min(range_list[:, 1]) + lon_range/2])
 
 # the limits for the plot
 pl_limits = np.array([lon_limit, lat_limit])
