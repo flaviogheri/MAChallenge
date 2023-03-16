@@ -8,7 +8,7 @@ from LOS_guidance import DMM_to_DEG
 class local_sim:
     def __init__(self, data_file: str):
         """ Class for Local Simulation"""
-        self.waypoint = None
+        self.wp = None
         self.init_pos = None
         self.theta = None
         self.speed = None
@@ -20,47 +20,51 @@ class local_sim:
         self.current_error = None
         self.lat_range = None
         self.lon_range = None
+        
+        # Create an empty plot with axis labels
+        fig, ax = plt.subplots()
+        
+        self.fig = fig
+        self.ax = ax
 
-    def setup_waypoints():
+    def setup_waypoints(self):
         self.wp = [[self.init_pos[0], self.init_pos[1]]]  # initialize with the initial coordinate
         tracks = load_wpl('data.txt')
         for track in tracks:
             for waypoint_dmm in track:
                 self.wp.append([DMM_to_DEG(waypoint_dmm)[0], DMM_to_DEG(waypoint_dmm)[1]])
-        wp = np.array(wp)
-        for point in wp:
-            ax.plot(point[0], point[1], marker='o', markersize=10)
+        self.wp = np.array(self.wp)
+        for point in self.wp:
+            self.ax.plot(point[0], point[1], marker='o', markersize=10)
 
 
-    def setup_data():
+    def setup_data(self):
         self.data_lat = []
         self.data_lon = []
         self.theta = []
         self.speed = []
         self.error = []
 
-    def on_key_press(event):
+    def on_key_press(self, event):
         # Define a function to handle the keyboard interrupt event
         if event.key == 'p':
-            fig.canvas.stop_event_loop()
+            self.fig.canvas.stop_event_loop()
 
 
-    def init_plot():
+    def init_plot(self):
         """ initiates the plot of function """
         
         # Connect the keyboard interrupt handler to the plot window
-        fig.canvas.mpl_connect('key_press_event', self.on_key_press())
+        self.fig.canvas.mpl_connect('key_press_event', self.on_key_press())
 
 
-        # Create an empty plot with axis labels
-        fig, ax = plt.subplots()
-        ax.set_xlabel('Longitude')
-        ax.set_ylabel('Latitude')
+        self.ax.set_xlabel('Longitude')
+        self.ax.set_ylabel('Latitude')
 
         self.setup_waypoints()
         # Set the axis limits and turn on interactive plotting
-        self.lat_range = np.max(wp[:,0]) - np.min(wp[:,0])
-        self.lon_range = np.max(wp[:,1]) - np.min(wp[:,1])
+        self.lat_range = np.max(self.wp[:,0]) - np.min(self.wp[:,0])
+        self.lon_range = np.max(self.wp[:,1]) - np.min(self.wp[:,1])
 
         # Add 10% to the range
         self.lat_range *= 1.1
@@ -72,13 +76,14 @@ class local_sim:
 
         self.setup_data()
         plt.ion()
+        
 
-    def run_plot():
+    def run_plot(self):
         # Generate a new point on the sine wave
         
 
 
-        ax.plot(self.current_pos[0], self.current_pos[1], color='r', markersize=10, marker='1')
+        self.ax.plot(self.current_pos[0], self.current_pos[1], color='r', markersize=10, marker='1')
 
         # plt.arrow(data_x[t],data_y[t], 0.5, 0.5, head_length=0.5)
         plt.annotate("", xy=(self.current_lon+np.cos(self.current_theta), self.current_pos[1] + np.sin(self.current_theta)), xytext=(self.current_lon, self.current_pos[1]),
@@ -94,8 +99,8 @@ class local_sim:
         plt.pause(0.005)
 
         # Check if a keyboard interrupt event has occurred
-        if not plt.fignum_exists(fig.number):
-            break
+        if not plt.fignum_exists(self.fig.number):
+            pass
 
         # Clear the plot to allow for a live update
         ax.cla()
