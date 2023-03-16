@@ -7,7 +7,6 @@
     <list default="true" id="8054330c-2510-4def-b086-a6dad75a51a0" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ShipAnim.py" beforeDir="false" afterPath="$PROJECT_DIR$/ShipAnim.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/anothertest.py" beforeDir="false" afterPath="$PROJECT_DIR$/anothertest.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/testsimulator.py" beforeDir="false" afterPath="$PROJECT_DIR$/testsimulator.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -171,7 +170,7 @@
       <option name="presentableId" value="Default" />
       <updated>1678389040961</updated>
       <workItem from="1678389044579" duration="48000" />
-      <workItem from="1678990901394" duration="6973000" />
+      <workItem from="1678990901394" duration="8509000" />
     </task>
     <servers />
   </component>
@@ -194,7 +193,7 @@
     <SUITE FILE_PATH="coverage/boat_simulator_py$testsimulator2.coverage" NAME="testsimulator2 Coverage Results" MODIFIED="1678982547836" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Simulator_py$anothertest.coverage" NAME="anothertest Coverage Results" MODIFIED="1678996259055" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/boat_simulator_py$testsimulator3.coverage" NAME="testsimulator3 Coverage Results" MODIFIED="1678985548572" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/Simulator_py$testsimulator.coverage" NAME="testsimulator Coverage Results" MODIFIED="1678998253530" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Simulator_py$testsimulator.coverage" NAME="testsimulator Coverage Results" MODIFIED="1678999766227" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/MAChallenge$LoadWPL.coverage" NAME="LoadWPL Coverage Results" MODIFIED="1678389074422" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>
