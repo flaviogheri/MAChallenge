@@ -1,0 +1,914 @@
+Index: ShipAnim.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>\"\"\" Created by Daniel-Iosif Trubacs and Flavio Gheri for the MAChellenge on 16 March 2023. The main aim of\r\nthis module is to create visualization for the ship movement.\r\n\"\"\"\r\n\r\nimport numpy as np\r\nfrom matplotlib import pyplot as plt\r\n\r\n\r\ndef set_plot(waypoints: np.ndarray, current_pos: np.ndarray, current_speed: float,\r\n             current_err:float, limits:np.ndarray, axis):\r\n    \"\"\" Draws the waypoints on interactive plot. Latitude is plotted on the y axis and longitude is plotted on\r\n        the x axis.\r\n\r\n    Args:\r\n        waypoints: numpy array representing list of waypoints (n_waypoints, lat ,long)\r\n        current_pos: current position of the bloat (lat, long)\r\n        current_speed: current speed of the bloat\r\n        current_err: current cross track error in relation to the current and last waypoint\r\n        limits: lat and long limits of the current plot [[lat_min,lat_max], [long_min, long_max]]\r\n        axis: matplotlib object representing the axis on which the data is plotted (axis.plot)\r\n\r\n    \"\"\"\r\n    # set the label of the plot\r\n    axis.set_xlabel('Longitude')\r\n    axis.set_ylabel('Latitude')\r\n\r\n    # set the limits of the plot\r\n    plt.xlim(limits[0])\r\n    plt.ylim(limits[1])\r\n\r\n    # plotting the waypoints\r\n    for i in range(len(waypoints)):\r\n        axis.plot(waypoints[i][1], waypoints[i][0], marker='o', markersize=10)\r\n        axis.text(waypoints[i][1], waypoints[i][0], 'WP'+str(i+1))\r\n\r\n    # plotting the current position\r\n    axis.plot(current_pos[1], current_pos[0], color = 'r', markersize=10, marker='1')\r\n    print(limits[1][1]*0.9999, limits[0][1]*0.9999)\r\n    axis.text(current_pos[1]*1.0002, current_pos[0]*1.000003, 'Position:'+str(round(current_pos[0], 6))+' '+str(round(current_pos[1], 6)))\r\n\r\n    # showing the speed\r\n    axis.text(current_pos[1]*1.0002, current_pos[0]*1.000002, 'Speed:'+str(round(current_speed, 3)))\r\n\r\n    # showing the heading (in degrees)\r\n    axis.text(current_pos[1]*1.0002, current_pos[0]*1.000001, 'Heading:'+str(round(current_speed, 3)))\r\n\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ShipAnim.py b/ShipAnim.py
+--- a/ShipAnim.py	(revision f0e87e9b912454e42bf523b84d1b85e07449dc95)
++++ b/ShipAnim.py	(date 1679005594524)
+@@ -6,10 +6,34 @@
+ from matplotlib import pyplot as plt
+ 
+ 
++def find_limits(initial_position: np.ndarray, waypoints: np.ndarray) -> np.ndarray:
++    """Creates limits for the plots
++
++    Args:
++        initial_position: the initial position of the boat (lat, lon) in DEG format
++        waypoints: list of all waypoints in DEG format
++
++    Returns: [[lon_min, lon_max], [lat_min,lat_max]]
++
++    """
++    # the range for lat and long for the waypoints and add 10% to it
++    range_list = np.concatenate((waypoints, np.expand_dims(initial_position, axis=0)))
++
++    lat_range = 3 * (np.max(range_list[:, 0]) - np.min(range_list[:, 0]))
++    lon_range = 3 * (np.max(range_list[:, 1]) - np.min(range_list[:, 1]))
++
++    # lat limits for the plot and add 15%
++    lat_limit = np.array([np.max(range_list[:, 0]) - lat_range / 2, np.min(range_list[:, 0]) + lat_range / 2])
++    lon_limit = np.array([np.max(range_list[:, 1]) - lon_range / 2, np.min(range_list[:, 1]) + lon_range / 2])
++
++    return np.array([lon_limit, lat_limit])
++
++
+ def set_plot(waypoints: np.ndarray, current_pos: np.ndarray, current_speed: float,
+-             current_err:float, limits:np.ndarray, axis):
++             current_err: float, limits: np.ndarray, current_heading: float,
++             path: np.ndarray, axis):
+     """ Draws the waypoints on interactive plot. Latitude is plotted on the y axis and longitude is plotted on
+-        the x axis.
++        the x axis. All lat and lon values should be in DEG format.
+ 
+     Args:
+         waypoints: numpy array representing list of waypoints (n_waypoints, lat ,long)
+@@ -17,9 +41,14 @@
+         current_speed: current speed of the bloat
+         current_err: current cross track error in relation to the current and last waypoint
+         limits: lat and long limits of the current plot [[lat_min,lat_max], [long_min, long_max]]
++        current_heading: current heading of the boat
++        path: the path followed by the boat should, ([past_lat_pos, past_lon_positions])
+         axis: matplotlib object representing the axis on which the data is plotted (axis.plot)
+ 
+     """
++    # waypoint range used to for correct location of plotting
++    waypoint_range = [limits[0][1] - limits[0][0], limits[1][1] - limits[1][0]]
++
+     # set the label of the plot
+     axis.set_xlabel('Longitude')
+     axis.set_ylabel('Latitude')
+@@ -30,17 +59,38 @@
+ 
+     # plotting the waypoints
+     for i in range(len(waypoints)):
+-        axis.plot(waypoints[i][1], waypoints[i][0], marker='o', markersize=10)
+-        axis.text(waypoints[i][1], waypoints[i][0], 'WP'+str(i+1))
+-
++        axis.plot(waypoints[i][1], waypoints[i][0], marker='x', color='red',  markersize=10)
++        axis.text(waypoints[i][1], waypoints[i][0], 'WP' + str(i + 1))
++        
++    # plot a dashed line between the waypoints
++    axis.plot(waypoints[:, 1], waypoints[:, 0], color='red', lw=1, linestyle='dashed' ) 
++    
+     # plotting the current position
+-    axis.plot(current_pos[1], current_pos[0], color = 'r', markersize=10, marker='1')
+-    print(limits[1][1]*0.9999, limits[0][1]*0.9999)
+-    axis.text(current_pos[1]*1.0002, current_pos[0]*1.000003, 'Position:'+str(round(current_pos[0], 6))+' '+str(round(current_pos[1], 6)))
++    axis.plot(current_pos[1], current_pos[0], color='blue', markersize=5, marker='o')
++    plt.title('Position: ' + str(round(current_pos[0], 6)) + '$^o$ '
++              + str(round(current_pos[1], 6)) + '$^o$')
+ 
+     # showing the speed
+-    axis.text(current_pos[1]*1.0002, current_pos[0]*1.000002, 'Speed:'+str(round(current_speed, 3)))
++    axis.text(waypoints[0, 1] + waypoint_range[1] * 0.4, waypoints[0, 0] + waypoint_range[0] * 0.25,
++              'Speed: ' + str(round(current_speed, 3))+ ' kts')
++
++    # showing the current track error (in degrees)
++    axis.text(waypoints[0, 1] + waypoint_range[1] * 0.4, waypoints[0, 0] + waypoint_range[0] * 0.275,
++              'CT error: ' + str(round(current_err, 3)) + ' m')
+ 
+     # showing the heading (in degrees)
+-    axis.text(current_pos[1]*1.0002, current_pos[0]*1.000001, 'Heading:'+str(round(current_speed, 3)))
++    axis.text(waypoints[0, 1] - waypoint_range[1] * 1.2, waypoints[0, 0] + waypoint_range[0] * 0.275,
++              'Heading:' + str(round(current_heading, 3)) + '$^o$')
++
++    # draw an arrow pointing to the heading
++    plt.annotate("", xy=(current_pos[1] + 0.0001*np.cos(current_heading), current_pos[0] + 0.0001*np.sin(current_heading)),
++                 xytext=(current_pos[1], current_pos[0]), arrowprops=dict(arrowstyle="->"))
++
++    # show the path followed by the boat
++    axis.plot(path[1], path[0], lw=2, markersize=10, color='black')
++
++    # invert x axis as longitude in the west
++    plt.gca().invert_xaxis()
++
++
+ 
+Index: testsimulator.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import matplotlib.pyplot as plt\r\nimport numpy as np\r\nfrom ShipAnim import set_plot, find_limits\r\nfrom LoadWPL import load_wpl\r\nfrom LOS_guidance import DMM_to_DEG\r\nimport time\r\n\r\n# load the waypoints from data.txt file\r\ntracks = load_wpl('data.txt')\r\nwaypoints_list = []\r\nj = 0\r\nfor track in tracks:\r\n    for waypoint_dmm in track:\r\n        j += 1\r\n        waypoints_list.append([DMM_to_DEG(waypoint_dmm)[0], DMM_to_DEG(waypoint_dmm)[1]])\r\n        print('waypoint', j, 'dmm', waypoint_dmm, 'deg', DMM_to_DEG(waypoint_dmm))\r\n\r\n# change to numpy array\r\nwaypoints_list = np.array(waypoints_list)\r\n\r\n# Create an empty list to store the data\r\nlat_data = np.arange(50.845140, 50.84518, 0.0000001)\r\nlon_data = np.arange(0.745076, 0.745930, 0.000001)\r\n\r\n\r\n# create random data for speed, error and heading\r\ntheta = np.arange(1, 31.4, 0.1)\r\nspeed = np.arange(1, 31.4, 0.1)\r\nerror = np.arange(1, 31.4, 0.1)\r\n\r\n# initial position\r\ninitial_pos = np.array(DMM_to_DEG(np.array([5050.708799, 44.755897])))\r\n\r\n\r\n# the limits for the plot\r\npl_limits = find_limits(initial_position=initial_pos, waypoints=waypoints_list)\r\n\r\n# Initialize the time and frequency variables\r\nt = 0\r\nfreq = 1\r\n\r\n# Define a function to handle the keyboard interrupt event\r\ndef on_key_press(event):\r\n    if event.key == 'p':\r\n        fig.canvas.stop_event_loop()\r\n\r\n# Create an empty plot with axis labels\r\nfig, ax = plt.subplots()\r\nplt.ion()\r\n\r\n# Connect the keyboard interrupt handler to the plot window\r\nfig.canvas.mpl_connect('key_press_event', on_key_press)\r\n\r\n# Continuously generate new data and update the plot\r\npast_lat = []\r\npast_lon = []\r\n\r\nwhile True:\r\n    #plt.annotate(\"\", xy=(data_x[t]+np.cos(theta[t]), data_y[t]+np.sin(theta[t])), xytext=(data_x[t], data_y[t]),\r\n                #arrowprops=dict(arrowstyle=\"->\"))\r\n\r\n\r\n    if t == 0:\r\n     set_plot(waypoints=waypoints_list, current_pos = np.array([lat_data[0], lon_data[-1]]), current_speed=speed[t],\r\n             current_err=error[t], limits=pl_limits, current_heading=theta[t], path=track, axis=ax)\r\n     past_lat.append(lat_data[0])\r\n     past_lon.append(lon_data[-1])\r\n    else:\r\n     set_plot(waypoints=waypoints_list, current_pos=np.array([lat_data[t], lon_data[-t]]), current_speed=speed[t],\r\n                 current_err=error[t], limits=pl_limits, current_heading=theta[t], path=track, axis=ax)\r\n     past_lat.append(lat_data[t])\r\n     past_lon.append(lon_data[-t])\r\n    track = np.array([past_lat, past_lon])\r\n\r\n\r\n\r\n    plt.draw()\r\n    plt.pause(0.01)\r\n\r\n    # Increment the time variable\r\n    t += 1\r\n\r\n    # Check if a keyboard interrupt event has occurred\r\n    if not plt.fignum_exists(fig.number):\r\n        break\r\n\r\n    # Clear the plot to allow for a live update\r\n    ax.cla()\r\n\r\n\r\n# Turn off interactive plotting\r\nplt.ioff()\r\n\r\n# Show the final plot\r\nplt.show()\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/testsimulator.py b/testsimulator.py
+--- a/testsimulator.py	(revision f0e87e9b912454e42bf523b84d1b85e07449dc95)
++++ b/testsimulator.py	(date 1679005099713)
+@@ -56,9 +56,6 @@
+ past_lon = []
+ 
+ while True:
+-    #plt.annotate("", xy=(data_x[t]+np.cos(theta[t]), data_y[t]+np.sin(theta[t])), xytext=(data_x[t], data_y[t]),
+-                #arrowprops=dict(arrowstyle="->"))
+-
+ 
+     if t == 0:
+      set_plot(waypoints=waypoints_list, current_pos = np.array([lat_data[0], lon_data[-1]]), current_speed=speed[t],
+Index: boat_simulator.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>\"\"\"\r\nCreated by Daniel-Iosif Trubacs for the MAC team on 8 March 2023. The purpose of this module is to create\r\na track from a given set of waypoints. To be run together with LoadWPL and LOS_guidance.\r\nThe main loop of the simulation should be:\r\nupdate current position -> check whether current waypoint has been reached ->\r\nupdate track and waypoint -> find heading -> set speed -> update current position.\r\n\"\"\"\r\n\r\nimport numpy as np\r\nfrom LoadWPL import load_wpl\r\nfrom LOS_guidance import LOS_latlon, call_distance, DMM_to_DEG\r\nfrom ShipSimCom import follow_heading, set_thrust, enter_heading_mode, decode_response\r\nimport serial\r\nfrom bearing_test import bearing\r\nimport time\r\n\r\ndef compare_points(x, y):\r\n    if x[0] == y[0] and x[1] == y[1]:\r\n        return True\r\n    else:\r\n        return False\r\n\r\ndef next_item(item, array: np.ndarray):\r\n    \"\"\" Return the next item from a numpy array when the current item (but not index) is known. \"\"\"\r\n    for i in range(array.shape[0]):\r\n        if compare_points(item, array[i]):\r\n            return array[i+1]\r\n  \r\nwayp = [[5050.710799,   44.755897], [5050.732397,   44.755897], [5050.732397,   44.738794],\r\n        [5050.710799,   44.738794], [5050.710799,   44.721691], [5050.732397,   44.721691],\r\n        [5050.732397,   44.704588], [5050.710799,   44.704588]]\r\n \r\ndef find_waypoint_name(waypoint, waypoints_list=wayp):\r\n    for i in range(len(waypoints_list)):\r\n        if compare_points(waypoint, waypoints_list[i]):\r\n            return 'WPT'+str(i+1)\r\n    \r\n    return 'None'\r\n\r\n\r\nclass Simulator:\r\n    def __init__(self, data_file: str):\r\n        \"\"\" Class for simulating ship movement.\r\n\r\n        Args:\r\n            data_file: .txt file containing the list of waypoints and tracks\r\n        \"\"\"\r\n        self.data_file = data_file\r\n        self.track_list = load_wpl(data_file)\r\n\r\n        # the current position of the boat, should be updated each time in the loop\r\n        self._current_pos = None\r\n\r\n        # the current speed of the boat, should be updated each time in the loop\r\n        self._current_speed = None\r\n\r\n        # the current serial object (used to connect to external hardware)\r\n        self._ser = None\r\n\r\n        # the current waypoint (next mission for the boat)\r\n        self._current_waypoint = None\r\n\r\n        # the current track of the boat\r\n        self._current_track = self.track_list[0]\r\n\r\n        # the last waypoint for the boat (used to keep the boat on track)\r\n        self._last_waypoint = None\r\n\r\n        # a parameter to check whether the last object has been achieved. The main\r\n        # loop should run until this has been achieve\r\n        self._mission = False\r\n        \r\n        self.prev_out = np.zeros(5)\r\n        \r\n        self.initial_pos = [5050.708799, 44.755897] \r\n\r\n    # a function to create connection with external hardware\r\n    def create_connection(self, n_port: str, n_baudrate: int, n_timeout: int):\r\n        \"\"\"Establishes serial communication with external hardware. See serial.Serial for more documentation.\"\"\"\r\n\r\n        self._ser = serial.Serial(port=n_port, baudrate=n_baudrate, timeout=n_timeout)\r\n             \r\n\r\n    def __update_position(self):\r\n        \"\"\" Update current position from external readings of GPS.\"\"\"\r\n        # read current input from serial\r\n        ser_message = self._ser.readline()\r\n        \r\n        if decode_response(ser_message) == None:\r\n            out = self.prev_out\r\n\r\n        else:\r\n            # decode message into lat, long, speed, course, utc_time\r\n            out = decode_response(ser_message)\r\n    \r\n        # extract lat and long\r\n        lat = float(out[0])\r\n        long = float(out[2])\r\n        # lat_dir = str(out[1])\r\n        # lon_dir = str(out[3])\r\n        # update position of the boat\r\n        self.prev_out = out\r\n        self._current_pos = np.array([lat, long])\r\n        #print(\"current position: \", self._current_pos)\r\n        \r\n        \r\n    def __update_current_track(self):\r\n        \"\"\" Change current track to the next track in the in the list\"\"\"\r\n        \r\n        # print(\"Within __update_current_track function-------------\")\r\n        # print(\"self._current_track = \", self._current_track)\r\n        if self._current_track is None:\r\n            # print(\"******\", self._current_track)\r\n            print(\"no track available so chose initial track\")\r\n            self._current_track = self.track_list[0]\r\n        else:\r\n            # the index of next track in the tracks list\r\n            print('current track available so go to next track')\r\n            next_track_index = self.track_list.index(self._current_track)+1\r\n            print('next track index', next_track_index)\r\n\r\n            # check whether this is the last track\r\n            if next_track_index == len(self.track_list):\r\n                print(\"This is the last track\")\r\n\r\n            else:\r\n                # change current track to next track\r\n                print(\"change to next track/ last track has not been reached\")\r\n                self._current_track = self.track_list[next_track_index]\r\n                # print(\"+++++++++++++ \", self._current_track)\r\n\r\n\r\n\r\n    def __update_current_waypoint(self):\r\n        \"\"\" Update current waypoint \"\"\"\r\n        \r\n        if self._current_waypoint is None:\r\n            self._current_waypoint = self._current_track[0]\r\n        else:\r\n            # check whether current waypoint has been reached\r\n            \r\n            #Convert format of waypoint from DMM to DEG \r\n            current_waypoint_DEG = DMM_to_DEG(self._current_waypoint)\r\n            current_pos_DEG = DMM_to_DEG(self._current_pos)\r\n            #print(\"^^^^^^^^^^\",self._last_waypoint)\r\n            if self._last_waypoint is not None:\r\n                last_waypoint_DEG = DMM_to_DEG(self._last_waypoint)\r\n            elif self._last_waypoint is None:\r\n                last_waypoint_DEG = DMM_to_DEG(self.initial_pos)\r\n\r\n            # print(\"-----\"self._current_waypoint, self._current_pos)\r\n            distance_to_wp = call_distance(current_waypoint_DEG, current_pos_DEG)[0] # distance in m\r\n            distance_from_last_wp = call_distance(last_waypoint_DEG, current_pos_DEG)[0] # distance in m\r\n            #print(\"DISTANCE TO WAYPOINT: \", distance_to_wp)\r\n            if distance_to_wp < 15 or distance_from_last_wp < 3:\r\n                #print(\"1kt\")\r\n                # last waypoint becomes current waypoint\r\n                set_thrust(self._ser, thrust=10)\r\n                \r\n            if distance_to_wp < 5:\r\n                    print(\"distance to current is smaller than 5/ change to next waypoint\")\r\n                    time.sleep(2)\r\n                    # change last waypoint to current waypoint\r\n                    self._last_waypoint = self._current_waypoint\r\n                    \r\n                    # check whether the current point is the last in the current track\r\n                    if compare_points(self._current_waypoint, self._current_track[-1]):\r\n                        Simulator.__update_current_track(self)\r\n                        self._current_waypoint = self._current_track[0]\r\n                        print(\"last waypoint in the track reached\")\r\n                    else:\r\n                        self._current_waypoint = next_item(self._current_waypoint, self._current_track)\r\n                        print(\"changing to next waypoint/ still in current track\")\r\n            else:\r\n                #print(\"5kts\")\r\n                set_thrust(self._ser, thrust=80)\r\n                \r\n                \r\n\r\n    # find the next heading\r\n    def find_heading(self):\r\n        # if the boat just started (the first waypoint has not been reached) use [0,0] as start\r\n        # print(self._current_waypoint, \"*******\")\r\n        # print(\"current_waypoint\", self._current_waypoint)\r\n        \r\n        if self._last_waypoint is None:\r\n            heading = LOS_latlon(self._current_pos, self.initial_pos, self._current_waypoint)[0]\r\n            cross_track_error = abs(LOS_latlon(self._current_pos, self.initial_pos, self._current_waypoint)[1])\r\n            # print(\"initial_pos\",self.initial_pos)\r\n            print('cross track error:', cross_track_error)\r\n            if cross_track_error > 3:\r\n                print(\"cross track error is over\")\r\n            else:\r\n                print(\"cross track error is within 3\")\r\n            return heading, cross_track_error\r\n            \r\n            \r\n        else:\r\n            heading = LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[0]\r\n            cross_track_error = abs(LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[1])\r\n            print('cross track error:', cross_track_error)\r\n            if cross_track_error > 3:\r\n                print(\"cross track error is over\")\r\n            else:\r\n                print(\"cross track error is within 3\")\r\n            return heading, cross_track_error\r\n        \r\n\r\n    def simulate(self):\r\n        \"\"\"The main loop running the simulation.\"\"\"\r\n        \r\n        # create connection with the hardware\r\n        Simulator.create_connection(self, 'COM7', 115200, 1)\r\n        \r\n        set_thrust(self._ser)\r\n        \r\n        enter_heading_mode(self._ser)\r\n        \r\n        # average for cross track error\r\n        cros_error_average = 0\r\n        \r\n        # number of values of cross error recorded\r\n        n_cross = 0\r\n        \r\n        # start counting cross track error \r\n        start_cross = False\r\n\r\n        # running until the mission is achieved      \r\n        while not self._mission:\r\n            # update position of the boat\r\n            Simulator.__update_position(self)\r\n\r\n            # update current track and waypoint\r\n           # Simulator.__update_current_track(self)\r\n            # print(\"--------------\", Simulator.__update_current_track(self))\r\n            Simulator.__update_current_waypoint(self)\r\n            \r\n            #Convert format of waypoint from DMM to DEG \r\n            current_waypoint_DEG = DMM_to_DEG(self._current_waypoint)\r\n            current_pos_DEG = DMM_to_DEG(self._current_pos)\r\n            #cross_track_error = LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[1]\r\n            \r\n            # check whether the mission has finished (last waypoint has been reached)\r\n            distance = call_distance(current_waypoint_DEG, current_pos_DEG)[0]\r\n            \r\n            print('current waypoint:', self._current_waypoint)\r\n            print('current pos:', self._current_pos)\r\n            print(find_waypoint_name(self._current_waypoint))\r\n            print('current track:', self.track_list.index(self._current_track))\r\n            print('distance to current waypoint:', distance)\r\n            #print('cross track error:', cross_track_error)\r\n\r\n\r\n\r\n            # find the next heading for the boat\r\n            heading, cross_t_err = Simulator.find_heading(self)\r\n\r\n            # bearing_value = bearing(self._current_pos, self._current_waypoint)\r\n            # find average cross track error\r\n            if compare_points(self._current_waypoint, self._current_track[1]):\r\n                start_cross = True\r\n            \r\n            # start counting cross track err\r\n            if start_cross:\r\n             cros_error_average += cross_t_err\r\n             n_cross += 1\r\n            \r\n             print('average cross track error:', cros_error_average/n_cross)\r\n            \r\n\r\n        \r\n            # print(\"/////////////////////\", heading)\r\n\r\n            # implement heading in the boat (send the command to the external hardware)\r\n            \r\n            follow_heading(self._ser, -heading)\r\n\r\n            # check whether current waypoint is the last waypoint in the last track\r\n            if compare_points(self._current_waypoint, self.track_list[-1][-1]):\r\n                print(\"This is the last waypoint\")\r\n                if distance < 5:\r\n                  print(\"The last waypoint in the last track has been reached\")\r\n                  self._ser.close()\r\n                  self._mission = True\r\n                else:\r\n                    print('Distance to last waypoint:', distance)\r\n                \r\n               \r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/boat_simulator.py b/boat_simulator.py
+--- a/boat_simulator.py	(revision f0e87e9b912454e42bf523b84d1b85e07449dc95)
++++ b/boat_simulator.py	(date 1679007572429)
+@@ -13,6 +13,8 @@
+ import serial
+ from bearing_test import bearing
+ import time
++from Speed_controller import PID, clamp
++import matplotlib.pyplot as plt
+ 
+ def compare_points(x, y):
+     if x[0] == y[0] and x[1] == y[1]:
+@@ -25,16 +27,16 @@
+     for i in range(array.shape[0]):
+         if compare_points(item, array[i]):
+             return array[i+1]
+-  
++
+ wayp = [[5050.710799,   44.755897], [5050.732397,   44.755897], [5050.732397,   44.738794],
+         [5050.710799,   44.738794], [5050.710799,   44.721691], [5050.732397,   44.721691],
+         [5050.732397,   44.704588], [5050.710799,   44.704588]]
+- 
++
+ def find_waypoint_name(waypoint, waypoints_list=wayp):
+     for i in range(len(waypoints_list)):
+         if compare_points(waypoint, waypoints_list[i]):
+             return 'WPT'+str(i+1)
+-    
++
+     return 'None'
+ 
+ 
+@@ -69,55 +71,62 @@
+         # a parameter to check whether the last object has been achieved. The main
+         # loop should run until this has been achieve
+         self._mission = False
+-        
+-        self.prev_out = np.zeros(5)
+-        
+-        self.initial_pos = [5050.708799, 44.755897] 
++
++        self.prev_out = np.zeros(7)
++
++        self.initial_pos = [5050.708799, 44.755897]
+ 
+     # a function to create connection with external hardware
+     def create_connection(self, n_port: str, n_baudrate: int, n_timeout: int):
+         """Establishes serial communication with external hardware. See serial.Serial for more documentation."""
+ 
+         self._ser = serial.Serial(port=n_port, baudrate=n_baudrate, timeout=n_timeout)
+-             
++
++        self._speed_log= []
++        self._time_log= []
+ 
++
+     def __update_position(self):
+         """ Update current position from external readings of GPS."""
+         # read current input from serial
+         ser_message = self._ser.readline()
+-        
++
+         if decode_response(ser_message) == None:
+             out = self.prev_out
+ 
+         else:
+             # decode message into lat, long, speed, course, utc_time
+             out = decode_response(ser_message)
+-    
++
+         # extract lat and long
+         lat = float(out[0])
+         long = float(out[2])
++        speed = float(out[4])
++        time = float(out[6])
+         # lat_dir = str(out[1])
+         # lon_dir = str(out[3])
+         # update position of the boat
+         self.prev_out = out
+         self._current_pos = np.array([lat, long])
++        self._current_speed = speed
++        self._current_time = time
+         #print("current position: ", self._current_pos)
+-        
+-        
++
++
+     def __update_current_track(self):
+         """ Change current track to the next track in the in the list"""
+-        
++
+         # print("Within __update_current_track function-------------")
+         # print("self._current_track = ", self._current_track)
+         if self._current_track is None:
+             # print("******", self._current_track)
+-            print("no track available so chose initial track")
++            #print("no track available so chose initial track")
+             self._current_track = self.track_list[0]
+         else:
+             # the index of next track in the tracks list
+-            print('current track available so go to next track')
++            #print('current track available so go to next track')
+             next_track_index = self.track_list.index(self._current_track)+1
+-            print('next track index', next_track_index)
++            #print('next track index', next_track_index)
+ 
+             # check whether this is the last track
+             if next_track_index == len(self.track_list):
+@@ -125,7 +134,7 @@
+ 
+             else:
+                 # change current track to next track
+-                print("change to next track/ last track has not been reached")
++            #    print("change to next track/ last track has not been reached")
+                 self._current_track = self.track_list[next_track_index]
+                 # print("+++++++++++++ ", self._current_track)
+ 
+@@ -133,13 +142,13 @@
+ 
+     def __update_current_waypoint(self):
+         """ Update current waypoint """
+-        
++
+         if self._current_waypoint is None:
+             self._current_waypoint = self._current_track[0]
+         else:
+             # check whether current waypoint has been reached
+-            
+-            #Convert format of waypoint from DMM to DEG 
++
++            #Convert format of waypoint from DMM to DEG
+             current_waypoint_DEG = DMM_to_DEG(self._current_waypoint)
+             current_pos_DEG = DMM_to_DEG(self._current_pos)
+             #print("^^^^^^^^^^",self._last_waypoint)
+@@ -152,80 +161,94 @@
+             distance_to_wp = call_distance(current_waypoint_DEG, current_pos_DEG)[0] # distance in m
+             distance_from_last_wp = call_distance(last_waypoint_DEG, current_pos_DEG)[0] # distance in m
+             #print("DISTANCE TO WAYPOINT: ", distance_to_wp)
+-            if distance_to_wp < 15 or distance_from_last_wp < 3:
++            if len(self._time_log)>1: #added
++                dt=self._current_time-self._time_log[-1] #added
++            else: dt=self._current_time #added
++
++            print("dt",dt)
++            if distance_to_wp < 30 or distance_from_last_wp < 3:
+                 #print("1kt")
+                 # last waypoint becomes current waypoint
+-                set_thrust(self._ser, thrust=10)
+-                
+-            if distance_to_wp < 5:
+-                    print("distance to current is smaller than 5/ change to next waypoint")
++                if dt > 0:
++                    controler = PID(Kp=15.0,Ki=0.0,Kd=5.0,setpoint=5.0,limits=(0,100)) #changed
++                    PID_output = controler.call(self._current_speed,dt)
++                    set_thrust(self._ser, PID_output)
++                    print(PID_output)
++
++            if distance_to_wp < 15:
++                    #print("distance to current is smaller than 5/ change to next waypoint")
+                     time.sleep(2)
+                     # change last waypoint to current waypoint
+                     self._last_waypoint = self._current_waypoint
+-                    
++
+                     # check whether the current point is the last in the current track
+                     if compare_points(self._current_waypoint, self._current_track[-1]):
+                         Simulator.__update_current_track(self)
+                         self._current_waypoint = self._current_track[0]
+-                        print("last waypoint in the track reached")
++                    #    print("last waypoint in the track reached")
+                     else:
+                         self._current_waypoint = next_item(self._current_waypoint, self._current_track)
+-                        print("changing to next waypoint/ still in current track")
++                    #    print("changing to next waypoint/ still in current track")
+             else:
+                 #print("5kts")
+-                set_thrust(self._ser, thrust=80)
+-                
+-                
++                if dt > 0:
++                    controler = PID(Kp=15.0,Ki=0.0,Kd=5.0,setpoint=1.0,limits=(0,100))
++                    PID_output = controler.call(self._current_speed,dt)
++                    set_thrust(self._ser, PID_output)
++                    print(PID_output)
++
++
+ 
++
+     # find the next heading
+     def find_heading(self):
+         # if the boat just started (the first waypoint has not been reached) use [0,0] as start
+         # print(self._current_waypoint, "*******")
+         # print("current_waypoint", self._current_waypoint)
+-        
++
+         if self._last_waypoint is None:
+             heading = LOS_latlon(self._current_pos, self.initial_pos, self._current_waypoint)[0]
+             cross_track_error = abs(LOS_latlon(self._current_pos, self.initial_pos, self._current_waypoint)[1])
+             # print("initial_pos",self.initial_pos)
+-            print('cross track error:', cross_track_error)
+-            if cross_track_error > 3:
+-                print("cross track error is over")
+-            else:
+-                print("cross track error is within 3")
++            #print('cross track error:', cross_track_error)
++            #if cross_track_error > 3:
++            #    print("cross track error is over")
++            #else:
++            #    print("cross track error is within 3")
+             return heading, cross_track_error
+-            
+-            
++
++
+         else:
+             heading = LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[0]
+             cross_track_error = abs(LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[1])
+-            print('cross track error:', cross_track_error)
+-            if cross_track_error > 3:
+-                print("cross track error is over")
+-            else:
+-                print("cross track error is within 3")
++            #print('cross track error:', cross_track_error)
++            #if cross_track_error > 3:
++            #    print("cross track error is over")
++            #else:
++            #    print("cross track error is within 3")
+             return heading, cross_track_error
+-        
++
+ 
+     def simulate(self):
+         """The main loop running the simulation."""
+-        
++
+         # create connection with the hardware
+-        Simulator.create_connection(self, 'COM7', 115200, 1)
+-        
+-        set_thrust(self._ser)
+-        
++        Simulator.create_connection(self, 'COM4', 115200, 1)
++
++        set_thrust(self._ser,thrust=50)
++
+         enter_heading_mode(self._ser)
+-        
++
+         # average for cross track error
+         cros_error_average = 0
+-        
++
+         # number of values of cross error recorded
+         n_cross = 0
+-        
+-        # start counting cross track error 
++
++        # start counting cross track error
+         start_cross = False
+ 
+-        # running until the mission is achieved      
++        # running until the mission is achieved
+         while not self._mission:
+             # update position of the boat
+             Simulator.__update_position(self)
+@@ -234,51 +257,58 @@
+            # Simulator.__update_current_track(self)
+             # print("--------------", Simulator.__update_current_track(self))
+             Simulator.__update_current_waypoint(self)
+-            
+-            #Convert format of waypoint from DMM to DEG 
++
++            #Convert format of waypoint from DMM to DEG
+             current_waypoint_DEG = DMM_to_DEG(self._current_waypoint)
+             current_pos_DEG = DMM_to_DEG(self._current_pos)
+             #cross_track_error = LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[1]
+-            
++
+             # check whether the mission has finished (last waypoint has been reached)
+             distance = call_distance(current_waypoint_DEG, current_pos_DEG)[0]
+-            
+-            print('current waypoint:', self._current_waypoint)
+-            print('current pos:', self._current_pos)
+-            print(find_waypoint_name(self._current_waypoint))
+-            print('current track:', self.track_list.index(self._current_track))
+-            print('distance to current waypoint:', distance)
++
++            # print('current waypoint:', self._current_waypoint)
++            # print('current pos:', self._current_pos)
++            # print(find_waypoint_name(self._current_waypoint))
++            # print('current track:', self.track_list.index(self._current_track))
++            # print('distance to current waypoint:', distance)
+             #print('cross track error:', cross_track_error)
+ 
+-
+-
+             # find the next heading for the boat
+             heading, cross_t_err = Simulator.find_heading(self)
+-
++            #print(self._current_speed)
+             # bearing_value = bearing(self._current_pos, self._current_waypoint)
+             # find average cross track error
+             if compare_points(self._current_waypoint, self._current_track[1]):
+                 start_cross = True
+-            
++
+             # start counting cross track err
+             if start_cross:
+              cros_error_average += cross_t_err
+              n_cross += 1
+-            
++
+              print('average cross track error:', cros_error_average/n_cross)
+-            
++
++            if self._current_time>0:
++                self._speed_log.append(self._current_speed)
++                self._time_log.append(self._current_time)
++                print("time:",self._current_time)
++                print("speed:",self._current_speed)
+ 
+-        
+             # print("/////////////////////", heading)
+ 
+             # implement heading in the boat (send the command to the external hardware)
+-            
++
+             follow_heading(self._ser, -heading)
+ 
+             # check whether current waypoint is the last waypoint in the last track
+             if compare_points(self._current_waypoint, self.track_list[-1][-1]):
+                 print("This is the last waypoint")
+-                if distance < 5:
++                plt.plot(self._time_log,self._speed_log)
++                plt.axhline(5,color="k",linestyle='--')
++                plt.xlabel("time(s)")
++                plt.ylabel("speed(kt)")
++
++                if distance < 15:
+                   print("The last waypoint in the last track has been reached")
+                   self._ser.close()
+                   self._mission = True
+Index: boat_simulator_trial.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/boat_simulator_trial.py b/boat_simulator_trial.py
+new file mode 100644
+--- /dev/null	(date 1679007572412)
++++ b/boat_simulator_trial.py	(date 1679007572412)
+@@ -0,0 +1,387 @@
++"""
++Created by Daniel-Iosif Trubacs for the MAC team on 8 March 2023. The purpose of this module is to create
++a track from a given set of waypoints. To be run together with LoadWPL and LOS_guidance.
++The main loop of the simulation should be:
++update current position -> check whether current waypoint has been reached ->
++update track and waypoint -> find heading -> set speed -> update current position.
++"""
++
++import numpy as np
++from LoadWPL import load_wpl
++from LOS_guidance import LOS_latlon, call_distance, DMM_to_DEG
++from ShipSimCom import follow_heading, set_thrust, enter_heading_mode, decode_response
++import serial
++from bearing_test import bearing
++import time
++from Speed_controller import PID, clamp
++import matplotlib.pyplot as plt
++from ShipAnim import set_plot, find_limits
++
++
++def compare_points(x, y):
++    if x[0] == y[0] and x[1] == y[1]:
++        return True
++    else:
++        return False
++
++
++def next_item(item, array: np.ndarray):
++    """ Return the next item from a numpy array when the current item (but not index) is known. """
++    for i in range(array.shape[0]):
++        if compare_points(item, array[i]):
++            return array[i + 1]
++
++
++wayp = [[5050.710799, 44.755897], [5050.732397, 44.755897], [5050.732397, 44.738794],
++        [5050.710799, 44.738794], [5050.710799, 44.721691], [5050.732397, 44.721691],
++        [5050.732397, 44.704588], [5050.710799, 44.704588]]
++
++
++def find_waypoint_name(waypoint, waypoints_list=wayp):
++    for i in range(len(waypoints_list)):
++        if compare_points(waypoint, waypoints_list[i]):
++            return 'WPT' + str(i + 1)
++
++    return 'None'
++
++
++class Simulator:
++    def __init__(self, data_file: str):
++        """ Class for simulating ship movement.
++
++        Args:
++            data_file: .txt file containing the list of waypoints and tracks
++        """
++        self.data_file = data_file
++        self.track_list = load_wpl(data_file)
++
++        # the current position of the boat, should be updated each time in the loop
++        self._current_pos = None
++
++        # the current speed of the boat, should be updated each time in the loop
++        self._current_speed = None
++
++        # the current serial object (used to connect to external hardware)
++        self._ser = None
++
++        # the current waypoint (next mission for the boat)
++        self._current_waypoint = None
++
++        # the current track of the boat
++        self._current_track = self.track_list[0]
++
++        # the last waypoint for the boat (used to keep the boat on track)
++        self._last_waypoint = None
++
++        # the heading of the boat
++        self._current_heading = None
++
++        # a parameter to check whether the last object has been achieved. The main
++        # loop should run until this has been achieve
++        self._mission = False
++
++        self.prev_out = np.zeros(7)
++
++        self.initial_pos = np.array([5050.708799, 44.755897])
++
++        # a function to create connection with external hardware
++
++    def find_waypoints_deg(self) -> np.ndarray:
++        """Creates a list of all waypoints in DEG format."""
++        # the list containing all the waypoints
++        waypoints_list = []
++
++        # going through each waypoint in the track
++        for track in self.track_list:
++            for waypoint_dmm in track:
++                waypoints_list.append([DMM_to_DEG(waypoint_dmm)[0], DMM_to_DEG(waypoint_dmm)[1]])
++
++        # return the list of waypoints
++        return waypoints_list
++
++    def create_connection(self, n_port: str, n_baudrate: int, n_timeout: int):
++        """Establishes serial communication with external hardware. See serial.Serial for more documentation."""
++
++        self._ser = serial.Serial(port=n_port, baudrate=n_baudrate, timeout=n_timeout)
++
++        self._speed_log = []
++        self._time_log = []
++
++    def __update_position(self):
++        """ Update current position from external readings of GPS."""
++        # read current input from serial
++        ser_message = self._ser.readline()
++
++        if decode_response(ser_message) == None:
++            out = self.prev_out
++
++        else:
++            # decode message into lat, long, speed, course, utc_time
++            out = decode_response(ser_message)
++
++        # extract lat and long
++        lat = float(out[0])
++        long = float(out[2])
++        speed = float(out[4])
++        time = float(out[6])
++        self._current_heading = float(out[5])
++
++        # lat_dir = str(out[1])
++        # lon_dir = str(out[3])
++        # update position of the boat
++        self.prev_out = out
++        self._current_pos = np.array([lat, long])
++        self._current_speed = speed
++        self._current_time = time
++        # print("current position: ", self._current_pos)
++
++    def __update_current_track(self):
++        """ Change current track to the next track in the in the list"""
++
++        # print("Within __update_current_track function-------------")
++        # print("self._current_track = ", self._current_track)
++        if self._current_track is None:
++            # print("******", self._current_track)
++            # print("no track available so chose initial track")
++            self._current_track = self.track_list[0]
++        else:
++            # the index of next track in the tracks list
++            # print('current track available so go to next track')
++            next_track_index = self.track_list.index(self._current_track) + 1
++            # print('next track index', next_track_index)
++
++            # check whether this is the last track
++            if next_track_index == len(self.track_list):
++                print("This is the last track")
++
++            else:
++                # change current track to next track
++                #    print("change to next track/ last track has not been reached")
++                self._current_track = self.track_list[next_track_index]
++                # print("+++++++++++++ ", self._current_track)
++
++    def __update_current_waypoint(self):
++        """ Update current waypoint """
++
++        if self._current_waypoint is None:
++            self._current_waypoint = self._current_track[0]
++        else:
++            # check whether current waypoint has been reached
++
++            # Convert format of waypoint from DMM to DEG
++            current_waypoint_DEG = DMM_to_DEG(self._current_waypoint)
++            current_pos_DEG = DMM_to_DEG(self._current_pos)
++            # print("^^^^^^^^^^",self._last_waypoint)
++            if self._last_waypoint is not None:
++                last_waypoint_DEG = DMM_to_DEG(self._last_waypoint)
++            elif self._last_waypoint is None:
++                last_waypoint_DEG = DMM_to_DEG(self.initial_pos)
++
++            # print("-----"self._current_waypoint, self._current_pos)
++            distance_to_wp = call_distance(current_waypoint_DEG, current_pos_DEG)[0]  # distance in m
++            distance_from_last_wp = call_distance(last_waypoint_DEG, current_pos_DEG)[0]  # distance in m
++            # print("DISTANCE TO WAYPOINT: ", distance_to_wp)
++            if len(self._time_log) > 1:  # added
++                dt = self._current_time - self._time_log[-1]  # added
++            else:
++                dt = self._current_time  # added
++
++            print("dt", dt)
++            if distance_to_wp < 30 or distance_from_last_wp < 3:
++                # print("1kt")
++                # last waypoint becomes current waypoint
++                if dt > 0:
++                    controler = PID(Kp=15.0, Ki=0.0, Kd=5.0, setpoint=5.0, limits=(0, 100))  # changed
++                    PID_output = controler.call(self._current_speed, dt)
++                    set_thrust(self._ser, PID_output)
++                    print(PID_output)
++
++            if distance_to_wp < 15:
++                # print("distance to current is smaller than 5/ change to next waypoint")
++                time.sleep(2)
++                # change last waypoint to current waypoint
++                self._last_waypoint = self._current_waypoint
++
++                # check whether the current point is the last in the current track
++                if compare_points(self._current_waypoint, self._current_track[-1]):
++                    Simulator.__update_current_track(self)
++                    self._current_waypoint = self._current_track[0]
++                #    print("last waypoint in the track reached")
++                else:
++                    self._current_waypoint = next_item(self._current_waypoint, self._current_track)
++                #    print("changing to next waypoint/ still in current track")
++            else:
++                # print("5kts")
++                if dt > 0:
++                    controler = PID(Kp=15.0, Ki=0.0, Kd=5.0, setpoint=1.0, limits=(0, 100))
++                    PID_output = controler.call(self._current_speed, dt)
++                    set_thrust(self._ser, PID_output)
++                    print(PID_output)
++
++    # find the next heading
++    def find_heading(self):
++        # if the boat just started (the first waypoint has not been reached) use [0,0] as start
++        # print(self._current_waypoint, "*******")
++        # print("current_waypoint", self._current_waypoint)
++
++        if self._last_waypoint is None:
++            heading = LOS_latlon(self._current_pos, self.initial_pos, self._current_waypoint)[0]
++            cross_track_error = abs(LOS_latlon(self._current_pos, self.initial_pos, self._current_waypoint)[1])
++            # print("initial_pos",self.initial_pos)
++            # print('cross track error:', cross_track_error)
++            # if cross_track_error > 3:
++            #    print("cross track error is over")
++            # else:
++            #    print("cross track error is within 3")
++            return heading, cross_track_error
++
++
++        else:
++            heading = LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[0]
++            cross_track_error = abs(LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[1])
++            # print('cross track error:', cross_track_error)
++            # if cross_track_error > 3:
++            #    print("cross track error is over")
++            # else:
++            #    print("cross track error is within 3")
++            return heading, cross_track_error
++
++    def simulate(self):
++        """The main loop running the simulation."""
++
++        # create connection with the hardware
++        Simulator.create_connection(self, 'COM4', 115200, 1)
++
++        set_thrust(self._ser, thrust=50)
++
++        enter_heading_mode(self._ser)
++
++        # average for cross track error
++        cros_error_average = 0
++
++        # number of values of cross error recorded
++        n_cross = 0
++
++        # start counting cross track error
++        start_cross = False
++
++        # this is only for visualization
++        waypoints_deg = Simulator.find_waypoints_deg(self)
++
++        # create limits for our plot
++        plot_limits = find_limits(initial_position=np.array(DMM_to_DEG(self.initial_position)),
++                                  waypoints=waypoints_deg)
++
++        # Define a function to handle the keyboard interrupt event
++        def on_key_press(event):
++            if event.key == 'p':
++                fig.canvas.stop_event_loop()
++
++        # Create an empty plot with axis labels
++        fig, ax = plt.subplots()
++
++        # start the interactive plotting session
++        plt.ion()
++
++        # Connect the keyboard interrupt handler to the plot window
++        fig.canvas.mpl_connect('key_press_event', on_key_press)
++
++        # a variable to contain all past_lat and past_lon so we can plot the path followed
++        past_lat = []
++        past_lon = []
++
++        # running until the mission is achieved
++        while not self._mission:
++            # update position of the boat
++            Simulator.__update_position(self)
++
++            # update current track and waypoint
++            # Simulator.__update_current_track(self)
++            # print("--------------", Simulator.__update_current_track(self))
++            Simulator.__update_current_waypoint(self)
++
++            # Convert format of waypoint from DMM to DEG
++            current_waypoint_DEG = DMM_to_DEG(self._current_waypoint)
++            current_pos_DEG = DMM_to_DEG(self._current_pos)
++            # cross_track_error = LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[1]
++
++            # check whether the mission has finished (last waypoint has been reached)
++            distance = call_distance(current_waypoint_DEG, current_pos_DEG)[0]
++
++            # print('current waypoint:', self._current_waypoint)
++            # print('current pos:', self._current_pos)
++            # print(find_waypoint_name(self._current_waypoint))
++            # print('current track:', self.track_list.index(self._current_track))
++            # print('distance to current waypoint:', distance)
++            # print('cross track error:', cross_track_error)
++
++            # find the next heading for the boat
++            heading, cross_t_err = Simulator.find_heading(self)
++            # print(self._current_speed)
++            # bearing_value = bearing(self._current_pos, self._current_waypoint)
++            # find average cross track error
++            if compare_points(self._current_waypoint, self._current_track[1]):
++                start_cross = True
++
++            # start counting cross track err
++            if start_cross:
++                cros_error_average += cross_t_err
++                n_cross += 1
++
++                print('average cross track error:', cros_error_average / n_cross)
++
++            if self._current_time > 0:
++                self._speed_log.append(self._current_speed)
++                self._time_log.append(self._current_time)
++                print("time:", self._current_time)
++                print("speed:", self._current_speed)
++
++            # print("/////////////////////", heading)
++
++            # implement heading in the boat (send the command to the external hardware)
++
++            follow_heading(self._ser, -heading)
++
++            # check whether current waypoint is the last waypoint in the last track
++            if compare_points(self._current_waypoint, self.track_list[-1][-1]):
++                print("This is the last waypoint")
++                plt.plot(self._time_log, self._speed_log)
++                plt.axhline(5, color="k", linestyle='--')
++                plt.xlabel("time(s)")
++                plt.ylabel("speed(kt)")
++
++                if distance < 15:
++                    print("The last waypoint in the last track has been reached")
++                    self._ser.close()
++                    self._mission = True
++                else:
++                    print('Distance to last waypoint:', distance)
++
++            # for plotting only
++            past_lat.append(current_pos_DEG[0])
++            past_lon.append(current_pos_DEG[1])
++            track = np.array([past_lat, past_lon])
++
++            # draw the plot
++            set_plot(waypoints=waypoints_deg, current_pos=current_pos_DEG, current_heading=self._current_heading,
++                     current_speed=self._current_speed, current_err=cross_t_err, limits=plot_limits, path=track,
++                     axis = ax)
++
++            # draw on matplotlib
++            plt.draw()
++            plt.pause(0.01)
++
++            # Check if a keyboard interrupt event has occurred
++            if not plt.fignum_exists(fig.number):
++                break
++
++            # Clear the plot to allow for a live update
++            ax.cla()
++
++    # close interactive plotting
++    plt.ioff()
++
++    # Show the final plot
++    plt.show()
++
++
+Index: .idea/workspace.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<project version=\"4\">\r\n  <component name=\"AutoImportSettings\">\r\n    <option name=\"autoReloadType\" value=\"SELECTIVE\" />\r\n  </component>\r\n  <component name=\"ChangeListManager\">\r\n    <list default=\"true\" id=\"8054330c-2510-4def-b086-a6dad75a51a0\" name=\"Changes\" comment=\"\">\r\n      <change beforePath=\"$PROJECT_DIR$/.idea/workspace.xml\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/.idea/workspace.xml\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/ShipAnim.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/ShipAnim.py\" afterDir=\"false\" />\r\n      <change beforePath=\"$PROJECT_DIR$/testsimulator.py\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/testsimulator.py\" afterDir=\"false\" />\r\n    </list>\r\n    <option name=\"SHOW_DIALOG\" value=\"false\" />\r\n    <option name=\"HIGHLIGHT_CONFLICTS\" value=\"true\" />\r\n    <option name=\"HIGHLIGHT_NON_ACTIVE_CHANGELIST\" value=\"false\" />\r\n    <option name=\"LAST_RESOLUTION\" value=\"IGNORE\" />\r\n  </component>\r\n  <component name=\"FileTemplateManagerImpl\">\r\n    <option name=\"RECENT_TEMPLATES\">\r\n      <list>\r\n        <option value=\"Python Script\" />\r\n      </list>\r\n    </option>\r\n  </component>\r\n  <component name=\"Git.Settings\">\r\n    <option name=\"RECENT_GIT_ROOT_PATH\" value=\"$PROJECT_DIR$\" />\r\n  </component>\r\n  <component name=\"ProjectId\" id=\"2Mn2UMRMdjJ9LT7FVQrrqveBbho\" />\r\n  <component name=\"ProjectLevelVcsManager\" settingsEditedManually=\"true\" />\r\n  <component name=\"ProjectViewState\">\r\n    <option name=\"hideEmptyMiddlePackages\" value=\"true\" />\r\n    <option name=\"showLibraryContents\" value=\"true\" />\r\n  </component>\r\n  <component name=\"PropertiesComponent\">\r\n    <property name=\"RunOnceActivity.OpenProjectViewOnStart\" value=\"true\" />\r\n    <property name=\"RunOnceActivity.ShowReadmeOnStart\" value=\"true\" />\r\n    <property name=\"WebServerToolWindowFactoryState\" value=\"false\" />\r\n    <property name=\"node.js.detected.package.eslint\" value=\"true\" />\r\n    <property name=\"node.js.detected.package.tslint\" value=\"true\" />\r\n    <property name=\"node.js.selected.package.eslint\" value=\"(autodetect)\" />\r\n    <property name=\"node.js.selected.package.tslint\" value=\"(autodetect)\" />\r\n    <property name=\"settings.editor.selected.configurable\" value=\"PyScientificConfigurable\" />\r\n  </component>\r\n  <component name=\"RunManager\" selected=\"Python.testsimulator\">\r\n    <configuration name=\"LoadWPL\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"MAChallenge\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <EXTENSION ID=\"PythonCoverageRunConfigurationExtension\" runner=\"coverage.py\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/LoadWPL.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <configuration name=\"anothertest\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"MAChallenge\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <EXTENSION ID=\"PythonCoverageRunConfigurationExtension\" runner=\"coverage.py\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/anothertest.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <configuration name=\"testsimulator\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"MAChallenge\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <EXTENSION ID=\"PythonCoverageRunConfigurationExtension\" runner=\"coverage.py\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/testsimulator.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <configuration name=\"testsimulator2\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"MAChallenge\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <EXTENSION ID=\"PythonCoverageRunConfigurationExtension\" runner=\"coverage.py\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/testsimulator2.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <configuration name=\"testsimulator3\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"MAChallenge\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <EXTENSION ID=\"PythonCoverageRunConfigurationExtension\" runner=\"coverage.py\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/testsimulator3.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <recent_temporary>\r\n      <list>\r\n        <item itemvalue=\"Python.testsimulator\" />\r\n        <item itemvalue=\"Python.anothertest\" />\r\n        <item itemvalue=\"Python.testsimulator3\" />\r\n        <item itemvalue=\"Python.testsimulator2\" />\r\n        <item itemvalue=\"Python.LoadWPL\" />\r\n      </list>\r\n    </recent_temporary>\r\n  </component>\r\n  <component name=\"SpellCheckerSettings\" RuntimeDictionaries=\"0\" Folders=\"0\" CustomDictionaries=\"0\" DefaultDictionary=\"application-level\" UseSingleDictionary=\"true\" transferred=\"true\" />\r\n  <component name=\"TaskManager\">\r\n    <task active=\"true\" id=\"Default\" summary=\"Default task\">\r\n      <changelist id=\"8054330c-2510-4def-b086-a6dad75a51a0\" name=\"Changes\" comment=\"\" />\r\n      <created>1678389040961</created>\r\n      <option name=\"number\" value=\"Default\" />\r\n      <option name=\"presentableId\" value=\"Default\" />\r\n      <updated>1678389040961</updated>\r\n      <workItem from=\"1678389044579\" duration=\"48000\" />\r\n      <workItem from=\"1678990901394\" duration=\"8509000\" />\r\n    </task>\r\n    <servers />\r\n  </component>\r\n  <component name=\"TypeScriptGeneratedFilesManager\">\r\n    <option name=\"version\" value=\"3\" />\r\n  </component>\r\n  <component name=\"Vcs.Log.Tabs.Properties\">\r\n    <option name=\"TAB_STATES\">\r\n      <map>\r\n        <entry key=\"MAIN\">\r\n          <value>\r\n            <State />\r\n          </value>\r\n        </entry>\r\n      </map>\r\n    </option>\r\n  </component>\r\n  <component name=\"com.intellij.coverage.CoverageDataManagerImpl\">\r\n    <SUITE FILE_PATH=\"coverage/boat_simulator_py$testsimulator.coverage\" NAME=\"testsimulator Coverage Results\" MODIFIED=\"1678985537012\" SOURCE_PROVIDER=\"com.intellij.coverage.DefaultCoverageFileProvider\" RUNNER=\"coverage.py\" COVERAGE_BY_TEST_ENABLED=\"true\" COVERAGE_TRACING_ENABLED=\"false\" WORKING_DIRECTORY=\"$PROJECT_DIR$\" />\r\n    <SUITE FILE_PATH=\"coverage/boat_simulator_py$testsimulator2.coverage\" NAME=\"testsimulator2 Coverage Results\" MODIFIED=\"1678982547836\" SOURCE_PROVIDER=\"com.intellij.coverage.DefaultCoverageFileProvider\" RUNNER=\"coverage.py\" COVERAGE_BY_TEST_ENABLED=\"true\" COVERAGE_TRACING_ENABLED=\"false\" WORKING_DIRECTORY=\"$PROJECT_DIR$\" />\r\n    <SUITE FILE_PATH=\"coverage/Simulator_py$anothertest.coverage\" NAME=\"anothertest Coverage Results\" MODIFIED=\"1678996259055\" SOURCE_PROVIDER=\"com.intellij.coverage.DefaultCoverageFileProvider\" RUNNER=\"coverage.py\" COVERAGE_BY_TEST_ENABLED=\"true\" COVERAGE_TRACING_ENABLED=\"false\" WORKING_DIRECTORY=\"$PROJECT_DIR$\" />\r\n    <SUITE FILE_PATH=\"coverage/boat_simulator_py$testsimulator3.coverage\" NAME=\"testsimulator3 Coverage Results\" MODIFIED=\"1678985548572\" SOURCE_PROVIDER=\"com.intellij.coverage.DefaultCoverageFileProvider\" RUNNER=\"coverage.py\" COVERAGE_BY_TEST_ENABLED=\"true\" COVERAGE_TRACING_ENABLED=\"false\" WORKING_DIRECTORY=\"$PROJECT_DIR$\" />\r\n    <SUITE FILE_PATH=\"coverage/Simulator_py$testsimulator.coverage\" NAME=\"testsimulator Coverage Results\" MODIFIED=\"1678999766227\" SOURCE_PROVIDER=\"com.intellij.coverage.DefaultCoverageFileProvider\" RUNNER=\"coverage.py\" COVERAGE_BY_TEST_ENABLED=\"true\" COVERAGE_TRACING_ENABLED=\"false\" WORKING_DIRECTORY=\"$PROJECT_DIR$\" />\r\n    <SUITE FILE_PATH=\"coverage/MAChallenge$LoadWPL.coverage\" NAME=\"LoadWPL Coverage Results\" MODIFIED=\"1678389074422\" SOURCE_PROVIDER=\"com.intellij.coverage.DefaultCoverageFileProvider\" RUNNER=\"coverage.py\" COVERAGE_BY_TEST_ENABLED=\"true\" COVERAGE_TRACING_ENABLED=\"false\" WORKING_DIRECTORY=\"$PROJECT_DIR$\" />\r\n  </component>\r\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/workspace.xml b/.idea/workspace.xml
+--- a/.idea/workspace.xml	(revision f0e87e9b912454e42bf523b84d1b85e07449dc95)
++++ b/.idea/workspace.xml	(date 1679007572886)
+@@ -5,8 +5,10 @@
+   </component>
+   <component name="ChangeListManager">
+     <list default="true" id="8054330c-2510-4def-b086-a6dad75a51a0" name="Changes" comment="">
++      <change afterPath="$PROJECT_DIR$/boat_simulator_trial.py" afterDir="false" />
+       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+       <change beforePath="$PROJECT_DIR$/ShipAnim.py" beforeDir="false" afterPath="$PROJECT_DIR$/ShipAnim.py" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/boat_simulator.py" beforeDir="false" afterPath="$PROJECT_DIR$/boat_simulator.py" afterDir="false" />
+       <change beforePath="$PROJECT_DIR$/testsimulator.py" beforeDir="false" afterPath="$PROJECT_DIR$/testsimulator.py" afterDir="false" />
+     </list>
+     <option name="SHOW_DIALOG" value="false" />
+@@ -170,7 +172,7 @@
+       <option name="presentableId" value="Default" />
+       <updated>1678389040961</updated>
+       <workItem from="1678389044579" duration="48000" />
+-      <workItem from="1678990901394" duration="8509000" />
++      <workItem from="1678990901394" duration="16215000" />
+     </task>
+     <servers />
+   </component>
+@@ -193,7 +195,7 @@
+     <SUITE FILE_PATH="coverage/boat_simulator_py$testsimulator2.coverage" NAME="testsimulator2 Coverage Results" MODIFIED="1678982547836" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+     <SUITE FILE_PATH="coverage/Simulator_py$anothertest.coverage" NAME="anothertest Coverage Results" MODIFIED="1678996259055" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+     <SUITE FILE_PATH="coverage/boat_simulator_py$testsimulator3.coverage" NAME="testsimulator3 Coverage Results" MODIFIED="1678985548572" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+-    <SUITE FILE_PATH="coverage/Simulator_py$testsimulator.coverage" NAME="testsimulator Coverage Results" MODIFIED="1678999766227" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
++    <SUITE FILE_PATH="coverage/Simulator_py$testsimulator.coverage" NAME="testsimulator Coverage Results" MODIFIED="1679005594531" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+     <SUITE FILE_PATH="coverage/MAChallenge$LoadWPL.coverage" NAME="LoadWPL Coverage Results" MODIFIED="1678389074422" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+   </component>
+ </project>
+\ No newline at end of file
