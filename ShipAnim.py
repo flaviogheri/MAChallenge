@@ -21,17 +21,17 @@ def set_plot(waypoints: np.ndarray, current_pos: np.ndarray, current_speed: floa
 
     """
     # set the label of the plot
-    axis.set_xlabel('Latitude')
-    axis.set_ylabel('Longitude')
+    axis.set_xlabel('Longitude')
+    axis.set_ylabel('Latitude')
 
     # set the limits of the plot
-    plt.xlim(limits[1])
-    plt.ylim(limits[0])
+    plt.xlim(limits[0])
+    plt.ylim(limits[1])
 
     # plotting the waypoints
     for i in range(len(waypoints)):
         axis.plot(waypoints[i][1], waypoints[i][0], marker='o', markersize=10)
-        axis.text(waypoints[i][1], waypoints[i][0], 'WP'+str(i))
+        axis.text(waypoints[i][1], waypoints[i][0], 'WP'+str(i+1))
 
     # plotting the current position
     axis.plot(current_pos[1], current_pos[0], color = 'r', markersize=10, marker='1')

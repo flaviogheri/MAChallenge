@@ -1,16 +1,45 @@
-import math
 import matplotlib.pyplot as plt
 import numpy as np
-import time
 from ShipAnim import set_plot
+from LoadWPL import load_wpl
+from LOS_guidance import DMM_to_DEG
+import time
 
+# load the waypoints from data.txt file
+tracks = load_wpl('data.txt')
+waypoints_list = []
+j = 0
+for track in tracks:
+    for waypoint_dmm in track:
+        j += 1
+        waypoints_list.append([DMM_to_DEG(waypoint_dmm)[0], DMM_to_DEG(waypoint_dmm)[1]])
+        print('waypoint', j, 'dmm', waypoint_dmm, 'deg', DMM_to_DEG(waypoint_dmm))
+
+# change to numpy array
+waypoints_list = np.array(waypoints_list)
 
 # Create an empty list to store the data
-data_x = np.arange(1, 10, 0.1)
-data_y = np.arange(1, 10, 0.1)
+lat_data = np.arange(50.84514, 50.84518, 0.000001)
+lon_data = np.arange(0.745076, 0.745930, 0.000001)
+
+# create random data for speed, error and heading
 theta = np.arange(1, 31.4, 0.1)
 speed = np.arange(1, 31.4, 0.1)
 error = np.arange(1, 31.4, 0.1)
+
+# initial position
+initial_position = np.array(DMM_to_DEG(np.array([5050.708799, 44.755897])))
+
+# the range for lat and long for the waypoints and add 10% to it
+lat_range = 1.1*(np.max(waypoints_list[:,0]) - np.min(waypoints_list[:,0]))
+lon_range = 1.1*(np.max(waypoints_list[:,1]) - np.min(waypoints_list[:,1]))
+
+# lat limits for the plot and add 15%
+lat_limit = np.array([initial_position[0] - lat_range, initial_position[0] + lat_range])
+lon_limit = np.array([initial_position[1] - lon_range, initial_position[1] + lon_range])
+
+# the limits for the plot
+pl_limits = np.array([lon_limit, lat_limit])
 
 # Initialize the time and frequency variables
 t = 0
@@ -20,13 +49,6 @@ freq = 1
 def on_key_press(event):
     if event.key == 'p':
         fig.canvas.stop_event_loop()
-
-
-
-# waypoint
-wp = [[1, 5]]
-
-pl_limits = [[0, 10], [0, 10]]
 
 # Create an empty plot with axis labels
 fig, ax = plt.subplots()
@@ -40,7 +62,8 @@ while True:
     #plt.annotate("", xy=(data_x[t]+np.cos(theta[t]), data_y[t]+np.sin(theta[t])), xytext=(data_x[t], data_y[t]),
                 #arrowprops=dict(arrowstyle="->"))
 
-    set_plot(waypoints=wp, current_pos = [data_x[t], data_y[t]], current_speed=speed[t], current_err=error[t], limits=pl_limits, axis=ax)
+    set_plot(waypoints=waypoints_list, current_pos = np.array([lat_data[t], lon_data[-t]]), current_speed=speed[t],
+             current_err=error[t], limits=pl_limits, axis=ax)
 
     plt.draw()
     plt.pause(0.01)

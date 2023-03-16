@@ -41,6 +41,14 @@ speed = np.arange(1, 31.4, 0.1)
 error = np.arange(1, 31.4, 0.1)
 
 
+lat_range = np.max(wp[:,0]) - np.min(wp[:,0])
+lon_range = np.max(wp[:,1]) - np.min(wp[:,1])
+
+# Add 10% to the range
+lat_range *= 1.1
+lon_range *= 1.1
+
+
 plt.ylim([init_lat - lat_range, init_lat + lat_range])
 plt.xlim([init_lon - lon_range, init_lon + lon_range])
 
