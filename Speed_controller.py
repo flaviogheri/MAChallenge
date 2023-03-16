@@ -33,7 +33,7 @@ class PID:
         self.derivative = 0.0
         self.limits = limits
         
-    def __call__(self, measured_value, dt=0.5):
+    def call(self, measured_value, dt):
         
         error = self.setpoint - measured_value
         prev_error = self.setpoint - self.previous_input
@@ -47,3 +47,15 @@ class PID:
         output = clamp(self.proportional + self.integral +  self.derivative, self.limits)
         self.previous_input = measured_value
         return output
+    
+    
+    
+    
+    
+    
+if __name__ == '__main__':
+    controler = PID(Kp=1.0,Ki=1.0,Kd=0.0,setpoint=5.0,limits=(-100,100))
+    print(controler.call(3))
+
+
+
