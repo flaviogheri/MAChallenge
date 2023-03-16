@@ -29,8 +29,7 @@ error = np.arange(1, 31.4, 0.1)
 
 # initial position
 initial_position = np.array(DMM_to_DEG(np.array([5050.708799, 44.755897])))
-print(initial_position)
-print(waypoints_list)
+
 # the range for lat and long for the waypoints and add 10% to it
 range_list = np.concatenate((waypoints_list, np.expand_dims(initial_position, axis=0)))
 
