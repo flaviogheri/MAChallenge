@@ -19,8 +19,8 @@ def find_limits(initial_position: np.ndarray, waypoints: np.ndarray) -> np.ndarr
     # the range for lat and long for the waypoints and add 10% to it
     range_list = np.concatenate((waypoints, np.expand_dims(initial_position, axis=0)))
 
-    lat_range = 3.3 * (np.max(range_list[:, 0]) - np.min(range_list[:, 0]))
-    lon_range = 3.3 * (np.max(range_list[:, 1]) - np.min(range_list[:, 1]))
+    lat_range = 3 * (np.max(range_list[:, 0]) - np.min(range_list[:, 0]))
+    lon_range = 3 * (np.max(range_list[:, 1]) - np.min(range_list[:, 1]))
 
     # lat limits for the plot and add 15%
     lat_limit = np.array([np.max(range_list[:, 0]) - lat_range / 2, np.min(range_list[:, 0]) + lat_range / 2])
@@ -63,20 +63,23 @@ def set_plot(waypoints: np.ndarray, current_pos: np.ndarray, current_speed: floa
         axis.text(waypoints[i][1], waypoints[i][0], 'WP'+str(i+1))
 
     # plotting the current position
-    axis.plot(current_pos[1], current_pos[0], color = 'r', markersize=10, marker='1')
-    axis.text(current_pos[1]*1.0002, current_pos[0]*1.000004, 'Position:'+str(round(current_pos[0], 6))+'$^o$ '
-              +str(round(current_pos[1], 6))+'$^o$')
+    axis.plot(current_pos[1], current_pos[0], color = 'r', markersize=15, marker='1')
+    
 
     # showing the speed
-    axis.text(waypoints[0, 1] - waypoint_range[1] * 0.25, waypoints[0, 0] + waypoint_range[0] * 0.25,
+    axis.text(waypoints[0, 1] + waypoint_range[1] * 0.4, waypoints[0, 0] + waypoint_range[0] * 0.25,
               'Speed:'+str(round(current_speed, 3)))
 
-    # showing the heading (in degrees)
-    axis.text(current_pos[1]*1.0002, current_pos[0]*1.000001, 'Heading:'+str(round(current_heading, 3)))
-
     # showing the current track error (in degrees)
-    axis.text(waypoints[0, 1] - waypoint_range[1] * 0.25, waypoints[0, 0] + waypoint_range[0] * 0.275,
+    axis.text(waypoints[0, 1] + waypoint_range[1] * 0.4, waypoints[0, 0] + waypoint_range[0] * 0.275,
               'CT error:' + str(round(current_err, 3)))
+
+    # showing the heading (in degrees)
+    axis.text(waypoints[0, 1] - waypoint_range[1] * 1.2, waypoints[0, 0] + waypoint_range[0] * 0.275,
+              'heading:' + str(round(current_heading, 3)))          
+    
+    plt.title('Position:'+str(round(current_pos[0], 6))+'$^o$ '
+              +str(round(current_pos[1], 6))+'$^o$')
 
     # show the path followed by the boat
     axis.plot(path[1], path[0], lw=1, markersize=10, color='black')
