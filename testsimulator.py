@@ -34,8 +34,8 @@ initial_position = np.array(DMM_to_DEG(np.array([5050.708799, 44.755897])))
 # the range for lat and long for the waypoints and add 10% to it
 range_list = np.concatenate((waypoints_list, np.expand_dims(initial_position, axis=0)))
 
-lat_range = 2.5*(np.max(range_list[:, 0]) - np.min(range_list[:, 0]))
-lon_range = 2.5*(np.max(range_list[:, 1]) - np.min(range_list[:,1 ]))
+lat_range = 3.3*(np.max(range_list[:, 0]) - np.min(range_list[:, 0]))
+lon_range = 3.3*(np.max(range_list[:, 1]) - np.min(range_list[:,1 ]))
 
 # lat limits for the plot and add 15%
 lat_limit = np.array([np.max(range_list[:, 0]) - lat_range/2, np.min(range_list[:, 0]) + lat_range/2])
