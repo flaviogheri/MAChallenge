@@ -10,6 +10,8 @@ class local_sim:
         """ Class for Local Simulation"""
         self.wp = None
         self.init_pos = None
+        self.init_lat = None
+        self.init_lon = None
         self.theta = None
         self.speed = None
         self.error = None
@@ -22,10 +24,8 @@ class local_sim:
         self.lon_range = None
         
         # Create an empty plot with axis labels
-        fig, ax = plt.subplots()
-        
-        self.fig = fig
-        self.ax = ax
+        #         
+        self.fig, self.ax = plt.subplots() 
 
     def setup_waypoints(self):
         self.wp = [[self.init_pos[0], self.init_pos[1]]]  # initialize with the initial coordinate
@@ -38,7 +38,7 @@ class local_sim:
             self.ax.plot(point[0], point[1], marker='o', markersize=10)
 
 
-    def setup_data(self):
+    def __setup_data(self):
         self.data_lat = []
         self.data_lon = []
         self.theta = []
@@ -49,6 +49,8 @@ class local_sim:
         # Define a function to handle the keyboard interrupt event
         if event.key == 'p':
             self.fig.canvas.stop_event_loop()
+
+
 
 
     def init_plot(self):
@@ -74,7 +76,7 @@ class local_sim:
         plt.ylim([init_lat - lat_range, init_lat + lat_range])
         plt.xlim([init_lon - lon_range, init_lon + lon_range])
 
-        self.setup_data()
+        self.__setup_data()
         plt.ion()
         
 
@@ -92,9 +94,9 @@ class local_sim:
 
 
         # Redraw the plot and pause briefly to allow the plot to update
-        plt.text(self.init_pos[0] + self.lon_range * 0.6, self.init_pos[0] + self.lat_range * 0.9, f"Heading: {theta[t]:.2f} rad")
-        plt.text(self.init_pos[0] + self.lat_range * 0.6, self.init_pos[0] + self.lat_range * 0.8, f"Speed: {speed[t]:.2f} kts")
-        plt.text(self.init_pos[0] + self.lon_range * 0.6, self.init_pos[0] + self.lat_range * 0.7, f"Cross Track Error: {error[t]:.2f} m")
+        plt.text(self.init_pos[0] + self.lon_range * 0.6, self.init_pos[0] + self.lat_range * 0.9, f"Heading: {self.theta[t]:.2f} rad")
+        plt.text(self.init_pos[0] + self.lat_range * 0.6, self.init_pos[0] + self.lat_range * 0.8, f"Speed: {self.speed[t]:.2f} kts")
+        plt.text(self.init_pos[0] + self.lon_range * 0.6, self.init_pos[0] + self.lat_range * 0.7, f"Cross Track Error: {self.error[t]:.2f} m")
         plt.draw()
         plt.pause(0.005)
 
@@ -103,7 +105,7 @@ class local_sim:
             pass
 
         # Clear the plot to allow for a live update
-        ax.cla()
+        self.ax.cla()
 
     def end_plot():
         # Turn off interactive plotting
