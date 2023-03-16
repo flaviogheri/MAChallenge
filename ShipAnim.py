@@ -30,7 +30,7 @@ def find_limits(initial_position: np.ndarray, waypoints: np.ndarray) -> np.ndarr
 
 
 def set_plot(waypoints: np.ndarray, current_pos: np.ndarray, current_speed: float,
-             current_err:float, limits:np.ndarray, current_heading: float,
+             current_err: float, limits: np.ndarray, current_heading: float,
              path: np.ndarray, axis):
     """ Draws the waypoints on interactive plot. Latitude is plotted on the y axis and longitude is plotted on
         the x axis. All lat and lon values should be in DEG format.
@@ -59,30 +59,35 @@ def set_plot(waypoints: np.ndarray, current_pos: np.ndarray, current_speed: floa
 
     # plotting the waypoints
     for i in range(len(waypoints)):
-        axis.plot(waypoints[i][1], waypoints[i][0], marker='x', markersize=10)
-        axis.text(waypoints[i][1], waypoints[i][0], 'WP'+str(i+1))
-
-    # plotting the current position
-    axis.plot(current_pos[1], current_pos[0], color = 'r', markersize=15, marker='1')
+        axis.plot(waypoints[i][1], waypoints[i][0], marker='x', color='red',  markersize=10)
+        axis.text(waypoints[i][1], waypoints[i][0], 'WP' + str(i + 1))
+        
+    # plot a dashed line between the waypoints
+    axis.plot(waypoints[:, 1], waypoints[:, 0], color='red', lw=1, linestyle='dashed' ) 
     
+    # plotting the current position
+    axis.plot(current_pos[1], current_pos[0], color='blue', markersize=5, marker='o')
+    plt.title('Position: ' + str(round(current_pos[0], 6)) + '$^o$ '
+              + str(round(current_pos[1], 6)) + '$^o$')
 
     # showing the speed
     axis.text(waypoints[0, 1] + waypoint_range[1] * 0.4, waypoints[0, 0] + waypoint_range[0] * 0.25,
-              'Speed:'+str(round(current_speed, 3)))
+              'Speed: ' + str(round(current_speed, 3))+ ' kts')
 
     # showing the current track error (in degrees)
     axis.text(waypoints[0, 1] + waypoint_range[1] * 0.4, waypoints[0, 0] + waypoint_range[0] * 0.275,
-              'CT error:' + str(round(current_err, 3)))
+              'CT error: ' + str(round(current_err, 3)) + ' m')
 
     # showing the heading (in degrees)
     axis.text(waypoints[0, 1] - waypoint_range[1] * 1.2, waypoints[0, 0] + waypoint_range[0] * 0.275,
-              'heading:' + str(round(current_heading, 3)))          
-    
-    plt.title('Position:'+str(round(current_pos[0], 6))+'$^o$ '
-              +str(round(current_pos[1], 6))+'$^o$')
+              'Heading:' + str(round(current_heading, 3)) + '$^o$')
+
+    # draw an arrow pointing to the heading
+    plt.annotate("", xy=(current_pos[1] + 0.0001*np.cos(current_heading), current_pos[0] + 0.0001*np.sin(current_heading)),
+                 xytext=(current_pos[1], current_pos[0]), arrowprops=dict(arrowstyle="->"))
 
     # show the path followed by the boat
-    axis.plot(path[1], path[0], lw=1, markersize=10, color='black')
+    axis.plot(path[1], path[0], lw=2, markersize=10, color='black')
 
     # invert x axis as longitude in the west
     plt.gca().invert_xaxis()
