@@ -51,6 +51,15 @@ class local_sim:
             self.fig.canvas.stop_event_loop()
 
 
+    def __initiate_parameters(self):
+
+        # Set the axis limits and turn on interactive plotting
+        self.lat_range = np.max(self.wp[:,0]) - np.min(self.wp[:,0])
+        self.lon_range = np.max(self.wp[:,1]) - np.min(self.wp[:,1])
+
+        # Add 10% to the range
+        self.lat_range *= 1.1
+        self.lon_range *= 1.1
 
 
     def init_plot(self):
@@ -64,13 +73,9 @@ class local_sim:
         self.ax.set_ylabel('Latitude')
 
         self.setup_waypoints()
-        # Set the axis limits and turn on interactive plotting
-        self.lat_range = np.max(self.wp[:,0]) - np.min(self.wp[:,0])
-        self.lon_range = np.max(self.wp[:,1]) - np.min(self.wp[:,1])
 
-        # Add 10% to the range
-        self.lat_range *= 1.1
-        self.lon_range *= 1.1
+        self.__initiate_parameters(self.wp)
+        
 
         # setup limits
         plt.ylim([init_lat - lat_range, init_lat + lat_range])
