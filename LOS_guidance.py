@@ -100,7 +100,10 @@ def latlon_meter_convertor(P: np.ndarray):
     equator_radius = 6378137.0  # Equator radius
     deg_meter_lon = 360 / (equator_radius * math.cos(math.radians(P[0])) * 2 * np.pi)  # degree/m in longitude
     deg_meter_lat = 360 / (pole_radius * 2 * np.pi)  # degree/m in latitude
-    return deg_meter_lat, deg_meter_lon
+    meter_deg_lon = (equator_radius * math.cos(math.radians(P[0])) * 2 * np.pi)/360  # m/degree in longitude
+    meter_deg_lat = (pole_radius * 2 * np.pi)/360  # degree/m in latitude
+    
+    return deg_meter_lat, deg_meter_lon, meter_deg_lat, meter_deg_lon
 
 def LOS_latlon(position: np.ndarray,
                previous_waypoint: np.ndarray,
@@ -124,26 +127,39 @@ def LOS_latlon(position: np.ndarray,
     position = DMM_to_DEG(position)
     previous_waypoint = DMM_to_DEG(previous_waypoint)
     current_waypoint = DMM_to_DEG(current_waypoint)
+    deg_meter_lat = latlon_meter_convertor(position)[0] #deg/m latitude
+    deg_meter_lon = latlon_meter_convertor(position)[1] #deg/m longitude
+    meter_deg_lat = latlon_meter_convertor(position)[2] #m/deg latitude
+    meter_deg_lon = latlon_meter_convertor(position)[3] #m/deg longitude
 
 
     # ************************Main code for LOS******************************************************
     # Angle of path
     # alpha = atan2((current_waypoint.y-previous_waypoint.y),(current_waypoint.x-previous_waypoint.x))
-    alpha = atan2(call_distance(current_waypoint, previous_waypoint)[1],
-                  call_distance(current_waypoint, previous_waypoint)[2])
+    #alpha = atan2(call_distance(current_waypoint, previous_waypoint)[1],
+    #              call_distance(current_waypoint, previous_waypoint)[2])
+    alpha = atan2((current_waypoint[0]-previous_waypoint[0])*meter_deg_lat,
+                  (current_waypoint[1]-previous_waypoint[1])*meter_deg_lon)
     # Along-track distance (los_s) and cross-track error (los_e)
 
     # los_s =((position.x-previous_waypoint.x)*cos(alpha)+(position.y-previous_waypoint.y)*sin(alpha))
-    los_s = ((call_distance(position, previous_waypoint)[2]) * cos(alpha) + (
-    call_distance(position, previous_waypoint)[1]) * sin(alpha))
+    #los_s = ((call_distance(position, previous_waypoint)[2]) * cos(alpha) + (
+    #call_distance(position, previous_waypoint)[1]) * sin(alpha))
+    los_s =((position[1]-previous_waypoint[1])*meter_deg_lon*cos(alpha)+
+            (position[0]-previous_waypoint[0])*meter_deg_lat*sin(alpha))
 
     # second_angle=atan2(position.y-previous_waypoint.y,position.x-previous_waypoint.x) + alpha
-    second_angle = atan2(call_distance(position, previous_waypoint)[1],
-                         call_distance(position, previous_waypoint)[2]) + alpha
+    #second_angle = atan2(call_distance(position, previous_waypoint)[1],
+    #                     call_distance(position, previous_waypoint)[2]) + alpha
+    second_angle=atan2((position[0]-previous_waypoint[0])*meter_deg_lat,
+                       (position[1]-previous_waypoint[1])*meter_deg_lon) + alpha
 
     # los_e = sqrt((position.x-previous_waypoint.x)**2+(position.y-previous_waypoint.y)**2)*sin(second_angle)
-    los_e = sqrt((call_distance(position, previous_waypoint)[2]) ** 2 + (
-    call_distance(position, previous_waypoint)[1]) ** 2) * sin(second_angle)
+    #los_e = sqrt((call_distance(position, previous_waypoint)[2]) ** 2 + (
+    #call_distance(position, previous_waypoint)[1]) ** 2) * sin(second_angle)
+    los_e = sqrt(((position[1]-previous_waypoint[1])*meter_deg_lon)**2+
+                 ((position[0]-previous_waypoint[0])*meter_deg_lat)**2)*sin(second_angle)
+
 
     los_delta = 0.0  # this is correct
 
@@ -154,21 +170,30 @@ def LOS_latlon(position: np.ndarray,
     # Orthogonal projection (where the blue line turns red)*****working for this
     # xproj = (los_s )*cos(alpha)+previous_waypoint.x
     # yproj = (los_s )*sin(alpha)+previous_waypoint.y
-    deg_meter_lat = latlon_meter_convertor(position)[0]
-    deg_meter_lon = latlon_meter_convertor(position)[1]
+    
+    #lon_proj = (los_s + los_delta) * cos(alpha) * deg_meter_lon + previous_waypoint[
+    #    1]  # lon projection in degrees + lon of previousWP
+    #lat_proj = (los_s + los_delta) * sin(alpha) * deg_meter_lat + previous_waypoint[
+    #    0]  # lat projection in degrees + lat of previous WP
 
-    lon_proj = (los_s + los_delta) * cos(alpha) * deg_meter_lon + previous_waypoint[
-        1]  # lon projection in degrees + lon of previousWP
-    lat_proj = (los_s + los_delta) * sin(alpha) * deg_meter_lat + previous_waypoint[
-        0]  # lat projection in degrees + lat of previous WP
+    lon_proj = (los_s) * cos(alpha) * deg_meter_lon + previous_waypoint[1]  # lon projection in degrees + lon of previousWP
+    lat_proj = (los_s) * sin(alpha) * deg_meter_lat + previous_waypoint[0]  # lat projection in degrees + lat of previous WP
 
-    TargetP = (lat_proj, lon_proj)
+    #TargetP = (lat_proj, lon_proj)
     # Heading point
     # losx = xproj+(los_delta)*cos(alpha) - position.x
-    los_lon = call_distance(TargetP, position)[2]
+    #los_lon = call_distance(TargetP, position)[2]
+    los_lon = (lon_proj+los_delta*deg_meter_lon*cos(alpha) - position[1])*meter_deg_lon
 
     # losy = yproj+(los_delta)*sin(alpha) - position.y
-    los_lat = call_distance(TargetP, position)[1]
+    #los_lat = call_distance(TargetP, position)[1]
+    los_lat = (lat_proj+los_delta*deg_meter_lat*sin(alpha) - position[0])*meter_deg_lat
+    
+    # If the vehicle is beyond the current waypoint, los_s > x:distance between waypoints
+    x = np.sqrt(((current_waypoint[0]-previous_waypoint[0])*meter_deg_lat)**2+((current_waypoint[1]-previous_waypoint[1])*meter_deg_lon)**2)
+    if los_s > x:
+        los_lon = (lon_proj-los_delta*deg_meter_lon*cos(alpha) - position[1])*meter_deg_lon
+        los_lat = (lat_proj-los_delta*deg_meter_lat*sin(alpha) - position[0])*meter_deg_lat
 
     # LOS heading(Desired heading angle in degrees)
     los_heading = degrees(atan2((los_lon), (los_lat)))
@@ -199,6 +224,3 @@ if __name__ == '__main__':
   P2 = np.array([5050.720397, 1044.759597])
   P3 = np.array([5050.732397, 00044.755897])
   wp_degress = DMM_to_DEG([5050.732397, 1044.755897])
-
-
-
