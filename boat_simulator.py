@@ -13,6 +13,8 @@ from ShipSimCom import follow_heading, set_thrust, enter_heading_mode, decode_re
 import serial
 from bearing_test import bearing
 import time
+from Speed_controller import PID, clamp
+import matplotlib.pyplot as plt
 
 def compare_points(x, y):
     if x[0] == y[0] and x[1] == y[1]:
@@ -70,7 +72,7 @@ class Simulator:
         # loop should run until this has been achieve
         self._mission = False
         
-        self.prev_out = np.zeros(5)
+        self.prev_out = np.zeros(7)
         
         self.initial_pos = [5050.708799, 44.755897] 
 
@@ -79,6 +81,9 @@ class Simulator:
         """Establishes serial communication with external hardware. See serial.Serial for more documentation."""
 
         self._ser = serial.Serial(port=n_port, baudrate=n_baudrate, timeout=n_timeout)
+        
+        self._speed_log= []
+        self._time_log= []
              
 
     def __update_position(self):
@@ -96,11 +101,15 @@ class Simulator:
         # extract lat and long
         lat = float(out[0])
         long = float(out[2])
+        speed = float(out[4])
+        time = float(out[6])
         # lat_dir = str(out[1])
         # lon_dir = str(out[3])
         # update position of the boat
         self.prev_out = out
         self._current_pos = np.array([lat, long])
+        self._current_speed = speed
+        self._current_time = time
         #print("current position: ", self._current_pos)
         
         
@@ -111,13 +120,13 @@ class Simulator:
         # print("self._current_track = ", self._current_track)
         if self._current_track is None:
             # print("******", self._current_track)
-            print("no track available so chose initial track")
+            #print("no track available so chose initial track")
             self._current_track = self.track_list[0]
         else:
             # the index of next track in the tracks list
-            print('current track available so go to next track')
+            #print('current track available so go to next track')
             next_track_index = self.track_list.index(self._current_track)+1
-            print('next track index', next_track_index)
+            #print('next track index', next_track_index)
 
             # check whether this is the last track
             if next_track_index == len(self.track_list):
@@ -125,7 +134,7 @@ class Simulator:
 
             else:
                 # change current track to next track
-                print("change to next track/ last track has not been reached")
+            #    print("change to next track/ last track has not been reached")
                 self._current_track = self.track_list[next_track_index]
                 # print("+++++++++++++ ", self._current_track)
 
@@ -152,13 +161,22 @@ class Simulator:
             distance_to_wp = call_distance(current_waypoint_DEG, current_pos_DEG)[0] # distance in m
             distance_from_last_wp = call_distance(last_waypoint_DEG, current_pos_DEG)[0] # distance in m
             #print("DISTANCE TO WAYPOINT: ", distance_to_wp)
-            if distance_to_wp < 15 or distance_from_last_wp < 3:
+            if len(self._time_log)>1: #added
+                dt=self._current_time-self._time_log[-1] #added
+            else: dt=self._current_time #added
+            
+            print("dt",dt)
+            if distance_to_wp < 30 or distance_from_last_wp < 3:
                 #print("1kt")
                 # last waypoint becomes current waypoint
-                set_thrust(self._ser, thrust=10)
+                if dt > 0:
+                    controler = PID(Kp=15.0,Ki=0.0,Kd=5.0,setpoint=5.0,limits=(0,100)) #changed
+                    PID_output = controler.call(self._current_speed,dt)
+                    set_thrust(self._ser, PID_output)
+                    print(PID_output)
                 
-            if distance_to_wp < 5:
-                    print("distance to current is smaller than 5/ change to next waypoint")
+            if distance_to_wp < 15:
+                    #print("distance to current is smaller than 5/ change to next waypoint")
                     time.sleep(2)
                     # change last waypoint to current waypoint
                     self._last_waypoint = self._current_waypoint
@@ -167,15 +185,20 @@ class Simulator:
                     if compare_points(self._current_waypoint, self._current_track[-1]):
                         Simulator.__update_current_track(self)
                         self._current_waypoint = self._current_track[0]
-                        print("last waypoint in the track reached")
+                    #    print("last waypoint in the track reached")
                     else:
                         self._current_waypoint = next_item(self._current_waypoint, self._current_track)
-                        print("changing to next waypoint/ still in current track")
+                    #    print("changing to next waypoint/ still in current track")
             else:
                 #print("5kts")
-                set_thrust(self._ser, thrust=80)
+                if dt > 0:
+                    controler = PID(Kp=15.0,Ki=0.0,Kd=5.0,setpoint=1.0,limits=(0,100))
+                    PID_output = controler.call(self._current_speed,dt)
+                    set_thrust(self._ser, PID_output)
+                    print(PID_output)
                 
                 
+
 
     # find the next heading
     def find_heading(self):
@@ -187,22 +210,22 @@ class Simulator:
             heading = LOS_latlon(self._current_pos, self.initial_pos, self._current_waypoint)[0]
             cross_track_error = abs(LOS_latlon(self._current_pos, self.initial_pos, self._current_waypoint)[1])
             # print("initial_pos",self.initial_pos)
-            print('cross track error:', cross_track_error)
-            if cross_track_error > 3:
-                print("cross track error is over")
-            else:
-                print("cross track error is within 3")
+            #print('cross track error:', cross_track_error)
+            #if cross_track_error > 3:
+            #    print("cross track error is over")
+            #else:
+            #    print("cross track error is within 3")
             return heading, cross_track_error
             
             
         else:
             heading = LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[0]
             cross_track_error = abs(LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[1])
-            print('cross track error:', cross_track_error)
-            if cross_track_error > 3:
-                print("cross track error is over")
-            else:
-                print("cross track error is within 3")
+            #print('cross track error:', cross_track_error)
+            #if cross_track_error > 3:
+            #    print("cross track error is over")
+            #else:
+            #    print("cross track error is within 3")
             return heading, cross_track_error
         
 
@@ -210,9 +233,9 @@ class Simulator:
         """The main loop running the simulation."""
         
         # create connection with the hardware
-        Simulator.create_connection(self, 'COM7', 115200, 1)
+        Simulator.create_connection(self, 'COM4', 115200, 1)
         
-        set_thrust(self._ser)
+        set_thrust(self._ser,thrust=50)
         
         enter_heading_mode(self._ser)
         
@@ -243,18 +266,16 @@ class Simulator:
             # check whether the mission has finished (last waypoint has been reached)
             distance = call_distance(current_waypoint_DEG, current_pos_DEG)[0]
             
-            print('current waypoint:', self._current_waypoint)
-            print('current pos:', self._current_pos)
-            print(find_waypoint_name(self._current_waypoint))
-            print('current track:', self.track_list.index(self._current_track))
-            print('distance to current waypoint:', distance)
+            # print('current waypoint:', self._current_waypoint)
+            # print('current pos:', self._current_pos)
+            # print(find_waypoint_name(self._current_waypoint))
+            # print('current track:', self.track_list.index(self._current_track))
+            # print('distance to current waypoint:', distance)
             #print('cross track error:', cross_track_error)
-
-
 
             # find the next heading for the boat
             heading, cross_t_err = Simulator.find_heading(self)
-
+            #print(self._current_speed)
             # bearing_value = bearing(self._current_pos, self._current_waypoint)
             # find average cross track error
             if compare_points(self._current_waypoint, self._current_track[1]):
@@ -267,7 +288,11 @@ class Simulator:
             
              print('average cross track error:', cros_error_average/n_cross)
             
-
+            if self._current_time>0:
+                self._speed_log.append(self._current_speed)
+                self._time_log.append(self._current_time)
+                print("time:",self._current_time)
+                print("speed:",self._current_speed)
         
             # print("/////////////////////", heading)
 
@@ -278,7 +303,12 @@ class Simulator:
             # check whether current waypoint is the last waypoint in the last track
             if compare_points(self._current_waypoint, self.track_list[-1][-1]):
                 print("This is the last waypoint")
-                if distance < 5:
+                plt.plot(self._time_log,self._speed_log)
+                plt.axhline(5,color="k",linestyle='--')
+                plt.xlabel("time(s)")
+                plt.ylabel("speed(kt)")
+                
+                if distance < 15:
                   print("The last waypoint in the last track has been reached")
                   self._ser.close()
                   self._mission = True
