@@ -177,7 +177,6 @@ class Simulator:
                 
                 
 
-
     # find the next heading
     def find_heading(self):
         # if the boat just started (the first waypoint has not been reached) use [0,0] as start
@@ -250,6 +249,8 @@ class Simulator:
             print('current track:', self.track_list.index(self._current_track))
             print('distance to current waypoint:', distance)
             #print('cross track error:', cross_track_error)
+
+
 
             # find the next heading for the boat
             heading, cross_t_err = Simulator.find_heading(self)

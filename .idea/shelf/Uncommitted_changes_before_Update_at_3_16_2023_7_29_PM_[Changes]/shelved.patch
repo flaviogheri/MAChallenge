@@ -1,0 +1,330 @@
+Index: boat_simulator.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>\"\"\"\r\nCreated by Daniel-Iosif Trubacs for the MAC team on 8 March 2023. The purpose of this module is to create\r\na track from a given set of waypoints. To be run together with LoadWPL and LOS_guidance.\r\nThe main loop of the simulation should be:\r\nupdate current position -> check whether current waypoint has been reached ->\r\nupdate track and waypoint -> find heading -> set speed -> update current position.\r\n\"\"\"\r\n\r\nimport numpy as np\r\nfrom LoadWPL import load_wpl\r\nfrom LOS_guidance import LOS_latlon, call_distance, DMM_to_DEG\r\nfrom ShipSimCom import follow_heading, set_thrust, enter_heading_mode, decode_response\r\nimport serial\r\nfrom bearing_test import bearing\r\nimport time\r\n\r\ndef compare_points(x, y):\r\n    if x[0] == y[0] and x[1] == y[1]:\r\n        return True\r\n    else:\r\n        return False\r\n\r\ndef next_item(item, array: np.ndarray):\r\n    \"\"\" Return the next item from a numpy array when the current item (but not index) is known. \"\"\"\r\n    for i in range(array.shape[0]):\r\n        if compare_points(item, array[i]):\r\n            return array[i+1]\r\n  \r\nwayp = [[5050.710799,   44.755897], [5050.732397,   44.755897], [5050.732397,   44.738794],\r\n        [5050.710799,   44.738794], [5050.710799,   44.721691], [5050.732397,   44.721691],\r\n        [5050.732397,   44.704588], [5050.710799,   44.704588]]\r\n \r\ndef find_waypoint_name(waypoint, waypoints_list=wayp):\r\n    for i in range(len(waypoints_list)):\r\n        if compare_points(waypoint, waypoints_list[i]):\r\n            return 'WPT'+str(i+1)\r\n    \r\n    return 'None'\r\n\r\n\r\nclass Simulator:\r\n    def __init__(self, data_file: str):\r\n        \"\"\" Class for simulating ship movement.\r\n\r\n        Args:\r\n            data_file: .txt file containing the list of waypoints and tracks\r\n        \"\"\"\r\n        self.data_file = data_file\r\n        self.track_list = load_wpl(data_file)\r\n\r\n        # the current position of the boat, should be updated each time in the loop\r\n        self._current_pos = None\r\n\r\n        # the current speed of the boat, should be updated each time in the loop\r\n        self._current_speed = None\r\n\r\n        # the current serial object (used to connect to external hardware)\r\n        self._ser = None\r\n\r\n        # the current waypoint (next mission for the boat)\r\n        self._current_waypoint = None\r\n\r\n        # the current track of the boat\r\n        self._current_track = self.track_list[0]\r\n\r\n        # the last waypoint for the boat (used to keep the boat on track)\r\n        self._last_waypoint = None\r\n\r\n        # a parameter to check whether the last object has been achieved. The main\r\n        # loop should run until this has been achieve\r\n        self._mission = False\r\n        \r\n        self.prev_out = np.zeros(5)\r\n        \r\n        self.initial_pos = [5050.708799, 44.755897] \r\n\r\n    # a function to create connection with external hardware\r\n    def create_connection(self, n_port: str, n_baudrate: int, n_timeout: int):\r\n        \"\"\"Establishes serial communication with external hardware. See serial.Serial for more documentation.\"\"\"\r\n\r\n        self._ser = serial.Serial(port=n_port, baudrate=n_baudrate, timeout=n_timeout)\r\n             \r\n\r\n    def __update_position(self):\r\n        \"\"\" Update current position from external readings of GPS.\"\"\"\r\n        # read current input from serial\r\n        ser_message = self._ser.readline()\r\n        \r\n        if decode_response(ser_message) == None:\r\n            out = self.prev_out\r\n\r\n        else:\r\n            # decode message into lat, long, speed, course, utc_time\r\n            out = decode_response(ser_message)\r\n    \r\n        # extract lat and long\r\n        lat = float(out[0])\r\n        long = float(out[2])\r\n        # lat_dir = str(out[1])\r\n        # lon_dir = str(out[3])\r\n        # update position of the boat\r\n        self.prev_out = out\r\n        self._current_pos = np.array([lat, long])\r\n        #print(\"current position: \", self._current_pos)\r\n        \r\n        \r\n    def __update_current_track(self):\r\n        \"\"\" Change current track to the next track in the in the list\"\"\"\r\n        \r\n        # print(\"Within __update_current_track function-------------\")\r\n        # print(\"self._current_track = \", self._current_track)\r\n        if self._current_track is None:\r\n            # print(\"******\", self._current_track)\r\n            print(\"no track available so chose initial track\")\r\n            self._current_track = self.track_list[0]\r\n        else:\r\n            # the index of next track in the tracks list\r\n            print('current track available so go to next track')\r\n            next_track_index = self.track_list.index(self._current_track)+1\r\n            print('next track index', next_track_index)\r\n\r\n            # check whether this is the last track\r\n            if next_track_index == len(self.track_list):\r\n                print(\"This is the last track\")\r\n\r\n            else:\r\n                # change current track to next track\r\n                print(\"change to next track/ last track has not been reached\")\r\n                self._current_track = self.track_list[next_track_index]\r\n                # print(\"+++++++++++++ \", self._current_track)\r\n\r\n\r\n\r\n    def __update_current_waypoint(self):\r\n        \"\"\" Update current waypoint \"\"\"\r\n        \r\n        if self._current_waypoint is None:\r\n            self._current_waypoint = self._current_track[0]\r\n        else:\r\n            # check whether current waypoint has been reached\r\n            \r\n            #Convert format of waypoint from DMM to DEG \r\n            current_waypoint_DEG = DMM_to_DEG(self._current_waypoint)\r\n            current_pos_DEG = DMM_to_DEG(self._current_pos)\r\n            #print(\"^^^^^^^^^^\",self._last_waypoint)\r\n            if self._last_waypoint is not None:\r\n                last_waypoint_DEG = DMM_to_DEG(self._last_waypoint)\r\n            elif self._last_waypoint is None:\r\n                last_waypoint_DEG = DMM_to_DEG(self.initial_pos)\r\n\r\n            # print(\"-----\"self._current_waypoint, self._current_pos)\r\n            distance_to_wp = call_distance(current_waypoint_DEG, current_pos_DEG)[0] # distance in m\r\n            distance_from_last_wp = call_distance(last_waypoint_DEG, current_pos_DEG)[0] # distance in m\r\n            #print(\"DISTANCE TO WAYPOINT: \", distance_to_wp)\r\n            if distance_to_wp < 15 or distance_from_last_wp < 3:\r\n                #print(\"1kt\")\r\n                # last waypoint becomes current waypoint\r\n                set_thrust(self._ser, thrust=10)\r\n                \r\n            if distance_to_wp < 5:\r\n                    print(\"distance to current is smaller than 5/ change to next waypoint\")\r\n                    time.sleep(2)\r\n                    # change last waypoint to current waypoint\r\n                    self._last_waypoint = self._current_waypoint\r\n                    \r\n                    # check whether the current point is the last in the current track\r\n                    if compare_points(self._current_waypoint, self._current_track[-1]):\r\n                        Simulator.__update_current_track(self)\r\n                        self._current_waypoint = self._current_track[0]\r\n                        print(\"last waypoint in the track reached\")\r\n                    else:\r\n                        self._current_waypoint = next_item(self._current_waypoint, self._current_track)\r\n                        print(\"changing to next waypoint/ still in current track\")\r\n            else:\r\n                #print(\"5kts\")\r\n                set_thrust(self._ser, thrust=80)\r\n                \r\n                \r\n\r\n\r\n    # find the next heading\r\n    def find_heading(self):\r\n        # if the boat just started (the first waypoint has not been reached) use [0,0] as start\r\n        # print(self._current_waypoint, \"*******\")\r\n        # print(\"current_waypoint\", self._current_waypoint)\r\n        \r\n        if self._last_waypoint is None:\r\n            heading = LOS_latlon(self._current_pos, self.initial_pos, self._current_waypoint)[0]\r\n            cross_track_error = abs(LOS_latlon(self._current_pos, self.initial_pos, self._current_waypoint)[1])\r\n            # print(\"initial_pos\",self.initial_pos)\r\n            print('cross track error:', cross_track_error)\r\n            if cross_track_error > 3:\r\n                print(\"cross track error is over\")\r\n            else:\r\n                print(\"cross track error is within 3\")\r\n            return heading, cross_track_error\r\n            \r\n            \r\n        else:\r\n            heading = LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[0]\r\n            cross_track_error = abs(LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[1])\r\n            print('cross track error:', cross_track_error)\r\n            if cross_track_error > 3:\r\n                print(\"cross track error is over\")\r\n            else:\r\n                print(\"cross track error is within 3\")\r\n            return heading, cross_track_error\r\n        \r\n\r\n    def simulate(self):\r\n        \"\"\"The main loop running the simulation.\"\"\"\r\n        \r\n        # create connection with the hardware\r\n        Simulator.create_connection(self, 'COM7', 115200, 1)\r\n        \r\n        set_thrust(self._ser)\r\n        \r\n        enter_heading_mode(self._ser)\r\n        \r\n        # average for cross track error\r\n        cros_error_average = 0\r\n        \r\n        # number of values of cross error recorded\r\n        n_cross = 0\r\n        \r\n        # start counting cross track error \r\n        start_cross = False\r\n\r\n        # running until the mission is achieved      \r\n        while not self._mission:\r\n            # update position of the boat\r\n            Simulator.__update_position(self)\r\n\r\n            # update current track and waypoint\r\n           # Simulator.__update_current_track(self)\r\n            # print(\"--------------\", Simulator.__update_current_track(self))\r\n            Simulator.__update_current_waypoint(self)\r\n            \r\n            #Convert format of waypoint from DMM to DEG \r\n            current_waypoint_DEG = DMM_to_DEG(self._current_waypoint)\r\n            current_pos_DEG = DMM_to_DEG(self._current_pos)\r\n            #cross_track_error = LOS_latlon(self._current_pos, self._last_waypoint, self._current_waypoint)[1]\r\n            \r\n            # check whether the mission has finished (last waypoint has been reached)\r\n            distance = call_distance(current_waypoint_DEG, current_pos_DEG)[0]\r\n            \r\n            print('current waypoint:', self._current_waypoint)\r\n            print('current pos:', self._current_pos)\r\n            print(find_waypoint_name(self._current_waypoint))\r\n            print('current track:', self.track_list.index(self._current_track))\r\n            print('distance to current waypoint:', distance)\r\n            #print('cross track error:', cross_track_error)\r\n\r\n            # find the next heading for the boat\r\n            heading, cross_t_err = Simulator.find_heading(self)\r\n\r\n            # bearing_value = bearing(self._current_pos, self._current_waypoint)\r\n            # find average cross track error\r\n            if compare_points(self._current_waypoint, self._current_track[1]):\r\n                start_cross = True\r\n            \r\n            # start counting cross track err\r\n            if start_cross:\r\n             cros_error_average += cross_t_err\r\n             n_cross += 1\r\n            \r\n             print('average cross track error:', cros_error_average/n_cross)\r\n            \r\n\r\n        \r\n            # print(\"/////////////////////\", heading)\r\n\r\n            # implement heading in the boat (send the command to the external hardware)\r\n            \r\n            follow_heading(self._ser, -heading)\r\n\r\n            # check whether current waypoint is the last waypoint in the last track\r\n            if compare_points(self._current_waypoint, self.track_list[-1][-1]):\r\n                print(\"This is the last waypoint\")\r\n                if distance < 5:\r\n                  print(\"The last waypoint in the last track has been reached\")\r\n                  self._ser.close()\r\n                  self._mission = True\r\n                else:\r\n                    print('Distance to last waypoint:', distance)\r\n                \r\n               \r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/boat_simulator.py b/boat_simulator.py
+--- a/boat_simulator.py	(revision 3d97b3adba8f716b3bcc0f1bf69730d190c0e4c0)
++++ b/boat_simulator.py	(date 1678992423351)
+@@ -177,7 +177,6 @@
+                 
+                 
+ 
+-
+     # find the next heading
+     def find_heading(self):
+         # if the boat just started (the first waypoint has not been reached) use [0,0] as start
+@@ -251,6 +250,8 @@
+             print('distance to current waypoint:', distance)
+             #print('cross track error:', cross_track_error)
+ 
++
++
+             # find the next heading for the boat
+             heading, cross_t_err = Simulator.find_heading(self)
+ 
+Index: testsimulator.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import math\r\nimport matplotlib.pyplot as plt\r\nimport numpy as np\r\n\r\n# Create an empty plot with axis labels\r\nfig, ax = plt.subplots()\r\nax.set_xlabel('Time (s)')\r\nax.set_ylabel('Amplitude')\r\n\r\n# Set the x-axis limits and turn on interactive plotting\r\nplt.xlim([0, 10])\r\nplt.ion()\r\n\r\n# Create an empty list to store the data\r\ndata_x = np.arange(1, 10, 0.1)\r\ndata_y = np.arange(1, 10, 0.1)\r\ntheta = np.arange(1, 31.4, 0.1)\r\nspeed = np.arange(1, 31.4, 0.1)\r\nerror = np.arange(1, 31.4, 0.1)\r\n\r\n# Initialize the time and frequency variables\r\nt = 0\r\nfreq = 1\r\n\r\n# Define a function to handle the keyboard interrupt event\r\ndef on_key_press(event):\r\n    if event.key == 'p':\r\n        fig.canvas.stop_event_loop()\r\n\r\n# Connect the keyboard interrupt handler to the plot window\r\nfig.canvas.mpl_connect('key_press_event', on_key_press)\r\n\r\n# waypoint\r\nwp = [1, 5]\r\n\r\n# Continuously generate new data and update the plot\r\nwhile True:\r\n\r\n    # Generate a new point on the sine wave\r\n    y = math.sin(2 * math.pi * freq * t)\r\n\r\n    # Add the new point to the list\r\n\r\n    # Update the plot with the \r\n    # ax.plot(data, color='blue')\r\n    plt.ylim([0, 10])\r\n    plt.xlim([0, 10])\r\n    ax.plot(wp[0], wp[1], marker = 'o', markersize = 10)\r\n    ax.plot(data_x[t],data_y[t], color = 'r', markersize = 10, marker = '1')\r\n    ax.plot([wp[0], data_x[t]], [wp[1], data_y[t]], linestyle='dashed')\r\n\r\n    #plt.arrow(data_x[t],data_y[t], 0.5, 0.5, head_length=0.5)\r\n    plt.annotate(\"\", xy=(data_x[t]+np.cos(theta[t]), data_y[t]+np.sin(theta[t])), xytext=(data_x[t], data_y[t]),\r\n                arrowprops=dict(arrowstyle=\"->\"))\r\n    # Redraw the plot and pause briefly to allow the plot to update\r\n    plt.text(6, 9, f\"Heading: {theta[t]:.2f} rad\")\r\n    plt.text(6, 8, f\"Speed: {speed[t]:.2f} kts\")\r\n    plt.text(6, 7, f\"Cross Track Error: {error[t]:.2f} m\")\r\n\r\n    plt.draw()\r\n    plt.pause(0.01)\r\n\r\n    # Increment the time variable\r\n    t += 1\r\n    \r\n\r\n    # Check if a keyboard interrupt event has occurred\r\n    if not plt.fignum_exists(fig.number):\r\n        break\r\n\r\n    # Clear the plot to allow for a live update\r\n    ax.cla()\r\n\r\n# Turn off interactive plotting\r\nplt.ioff()\r\n\r\n# Show the final plot\r\nplt.show()\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/testsimulator.py b/testsimulator.py
+--- a/testsimulator.py	(revision 3d97b3adba8f716b3bcc0f1bf69730d190c0e4c0)
++++ b/testsimulator.py	(date 1678994917359)
+@@ -1,15 +1,9 @@
+ import math
+ import matplotlib.pyplot as plt
+ import numpy as np
++import time
++from ShipAnim import set_plot
+ 
+-# Create an empty plot with axis labels
+-fig, ax = plt.subplots()
+-ax.set_xlabel('Time (s)')
+-ax.set_ylabel('Amplitude')
+-
+-# Set the x-axis limits and turn on interactive plotting
+-plt.xlim([0, 10])
+-plt.ion()
+ 
+ # Create an empty list to store the data
+ data_x = np.arange(1, 10, 0.1)
+@@ -27,42 +21,32 @@
+     if event.key == 'p':
+         fig.canvas.stop_event_loop()
+ 
++
++
++# waypoint
++wp = [[1, 5]]
++
++pl_limits = [[0, 10], [0, 10]]
++
++# Create an empty plot with axis labels
++fig, ax = plt.subplots()
++plt.ion()
++
+ # Connect the keyboard interrupt handler to the plot window
+ fig.canvas.mpl_connect('key_press_event', on_key_press)
+ 
+-# waypoint
+-wp = [1, 5]
+-
+ # Continuously generate new data and update the plot
+ while True:
+-
+-    # Generate a new point on the sine wave
+-    y = math.sin(2 * math.pi * freq * t)
++    #plt.annotate("", xy=(data_x[t]+np.cos(theta[t]), data_y[t]+np.sin(theta[t])), xytext=(data_x[t], data_y[t]),
++                #arrowprops=dict(arrowstyle="->"))
+ 
+-    # Add the new point to the list
+-
+-    # Update the plot with the 
+-    # ax.plot(data, color='blue')
+-    plt.ylim([0, 10])
+-    plt.xlim([0, 10])
+-    ax.plot(wp[0], wp[1], marker = 'o', markersize = 10)
+-    ax.plot(data_x[t],data_y[t], color = 'r', markersize = 10, marker = '1')
+-    ax.plot([wp[0], data_x[t]], [wp[1], data_y[t]], linestyle='dashed')
+-
+-    #plt.arrow(data_x[t],data_y[t], 0.5, 0.5, head_length=0.5)
+-    plt.annotate("", xy=(data_x[t]+np.cos(theta[t]), data_y[t]+np.sin(theta[t])), xytext=(data_x[t], data_y[t]),
+-                arrowprops=dict(arrowstyle="->"))
+-    # Redraw the plot and pause briefly to allow the plot to update
+-    plt.text(6, 9, f"Heading: {theta[t]:.2f} rad")
+-    plt.text(6, 8, f"Speed: {speed[t]:.2f} kts")
+-    plt.text(6, 7, f"Cross Track Error: {error[t]:.2f} m")
++    set_plot(waypoints=wp, current_pos = [data_x[t], data_y[t]], current_speed=speed[t], current_err=error[t], limits=pl_limits, axis=ax)
+ 
+     plt.draw()
+     plt.pause(0.01)
+ 
+     # Increment the time variable
+     t += 1
+-    
+ 
+     # Check if a keyboard interrupt event has occurred
+     if not plt.fignum_exists(fig.number):
+Index: ShipAnim.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ShipAnim.py b/ShipAnim.py
+new file mode 100644
+--- /dev/null	(date 1678994877303)
++++ b/ShipAnim.py	(date 1678994877303)
+@@ -0,0 +1,45 @@
++""" Created by Daniel-Iosif Trubacs and Flavio Gheri for the MAChellenge on 16 March 2023. The main aim of
++this module is to create visualization for the ship movement.
++"""
++
++import numpy as np
++from matplotlib import pyplot as plt
++
++
++def set_plot(waypoints: np.ndarray, current_pos: np.ndarray, current_speed: float,
++             current_err:float, limits:np.ndarray, axis):
++    """ Draws the waypoints on interactive plot. Latitude is plotted on the y axis and longitude is plotted on
++        the x axis.
++
++    Args:
++        waypoints: numpy array representing list of waypoints (n_waypoints, lat ,long)
++        current_pos: current position of the bloat (lat, long)
++        current_speed: current speed of the bloat
++        current_err: current cross track error in relation to the current and last waypoint
++        limits: lat and long limits of the current plot [[lat_min,lat_max], [long_min, long_max]]
++        axis: matplotlib object representing the axis on which the data is plotted (axis.plot)
++
++    """
++    # set the label of the plot
++    axis.set_xlabel('Latitude')
++    axis.set_ylabel('Longitude')
++
++    # set the limits of the plot
++    plt.xlim(limits[1])
++    plt.ylim(limits[0])
++
++    # plotting the waypoints
++    for i in range(len(waypoints)):
++        axis.plot(waypoints[i][1], waypoints[i][0], marker='o', markersize=10)
++        axis.text(waypoints[i][1], waypoints[i][0], 'WP'+str(i))
++
++    # plotting the current position
++    axis.plot(current_pos[1], current_pos[0], color = 'r', markersize=10, marker='1')
++    axis.text(limits[1][1]*0.8, limits[0][1]*0.9, 'Position:'+str(current_pos[0])+' '+str(current_pos[1]))
++
++    # showing the speed
++    axis.text(limits[1][1]*0.8, limits[0][1]*0.8, 'Speed:'+str(round(current_speed, 3)))
++
++    # showing the heading (in degrees)
++    axis.text(limits[1][1]*0.8, limits[0][1]*0.7, 'Heading:'+str(round(current_speed, 3)))
++
+Index: .idea/workspace.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<project version=\"4\">\r\n  <component name=\"ChangeListManager\">\r\n    <list default=\"true\" id=\"8054330c-2510-4def-b086-a6dad75a51a0\" name=\"Changes\" comment=\"\" />\r\n    <option name=\"SHOW_DIALOG\" value=\"false\" />\r\n    <option name=\"HIGHLIGHT_CONFLICTS\" value=\"true\" />\r\n    <option name=\"HIGHLIGHT_NON_ACTIVE_CHANGELIST\" value=\"false\" />\r\n    <option name=\"LAST_RESOLUTION\" value=\"IGNORE\" />\r\n  </component>\r\n  <component name=\"Git.Settings\">\r\n    <option name=\"RECENT_GIT_ROOT_PATH\" value=\"$PROJECT_DIR$\" />\r\n  </component>\r\n  <component name=\"ProjectId\" id=\"2Mn2UMRMdjJ9LT7FVQrrqveBbho\" />\r\n  <component name=\"ProjectLevelVcsManager\" settingsEditedManually=\"true\" />\r\n  <component name=\"ProjectViewState\">\r\n    <option name=\"hideEmptyMiddlePackages\" value=\"true\" />\r\n    <option name=\"showLibraryContents\" value=\"true\" />\r\n  </component>\r\n  <component name=\"PropertiesComponent\">\r\n    <property name=\"RunOnceActivity.OpenProjectViewOnStart\" value=\"true\" />\r\n    <property name=\"RunOnceActivity.ShowReadmeOnStart\" value=\"true\" />\r\n    <property name=\"WebServerToolWindowFactoryState\" value=\"false\" />\r\n  </component>\r\n  <component name=\"RunManager\">\r\n    <configuration name=\"LoadWPL\" type=\"PythonConfigurationType\" factoryName=\"Python\" temporary=\"true\" nameIsGenerated=\"true\">\r\n      <module name=\"MAChallenge\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"true\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <EXTENSION ID=\"PythonCoverageRunConfigurationExtension\" runner=\"coverage.py\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/LoadWPL.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n    <recent_temporary>\r\n      <list>\r\n        <item itemvalue=\"Python.LoadWPL\" />\r\n      </list>\r\n    </recent_temporary>\r\n  </component>\r\n  <component name=\"SpellCheckerSettings\" RuntimeDictionaries=\"0\" Folders=\"0\" CustomDictionaries=\"0\" DefaultDictionary=\"application-level\" UseSingleDictionary=\"true\" transferred=\"true\" />\r\n  <component name=\"TaskManager\">\r\n    <task active=\"true\" id=\"Default\" summary=\"Default task\">\r\n      <changelist id=\"8054330c-2510-4def-b086-a6dad75a51a0\" name=\"Changes\" comment=\"\" />\r\n      <created>1678389040961</created>\r\n      <option name=\"number\" value=\"Default\" />\r\n      <option name=\"presentableId\" value=\"Default\" />\r\n      <updated>1678389040961</updated>\r\n      <workItem from=\"1678389044579\" duration=\"48000\" />\r\n    </task>\r\n    <servers />\r\n  </component>\r\n  <component name=\"TypeScriptGeneratedFilesManager\">\r\n    <option name=\"version\" value=\"3\" />\r\n  </component>\r\n  <component name=\"com.intellij.coverage.CoverageDataManagerImpl\">\r\n    <SUITE FILE_PATH=\"coverage/MAChallenge$LoadWPL.coverage\" NAME=\"LoadWPL Coverage Results\" MODIFIED=\"1678389074422\" SOURCE_PROVIDER=\"com.intellij.coverage.DefaultCoverageFileProvider\" RUNNER=\"coverage.py\" COVERAGE_BY_TEST_ENABLED=\"true\" COVERAGE_TRACING_ENABLED=\"false\" WORKING_DIRECTORY=\"$PROJECT_DIR$\" />\r\n  </component>\r\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/workspace.xml b/.idea/workspace.xml
+--- a/.idea/workspace.xml	(revision 3d97b3adba8f716b3bcc0f1bf69730d190c0e4c0)
++++ b/.idea/workspace.xml	(date 1678994822160)
+@@ -1,12 +1,27 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <project version="4">
++  <component name="AutoImportSettings">
++    <option name="autoReloadType" value="SELECTIVE" />
++  </component>
+   <component name="ChangeListManager">
+-    <list default="true" id="8054330c-2510-4def-b086-a6dad75a51a0" name="Changes" comment="" />
++    <list default="true" id="8054330c-2510-4def-b086-a6dad75a51a0" name="Changes" comment="">
++      <change afterPath="$PROJECT_DIR$/ShipAnim.py" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/boat_simulator.py" beforeDir="false" afterPath="$PROJECT_DIR$/boat_simulator.py" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/testsimulator.py" beforeDir="false" afterPath="$PROJECT_DIR$/testsimulator.py" afterDir="false" />
++    </list>
+     <option name="SHOW_DIALOG" value="false" />
+     <option name="HIGHLIGHT_CONFLICTS" value="true" />
+     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+     <option name="LAST_RESOLUTION" value="IGNORE" />
+   </component>
++  <component name="FileTemplateManagerImpl">
++    <option name="RECENT_TEMPLATES">
++      <list>
++        <option value="Python Script" />
++      </list>
++    </option>
++  </component>
+   <component name="Git.Settings">
+     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+   </component>
+@@ -20,8 +35,13 @@
+     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+     <property name="WebServerToolWindowFactoryState" value="false" />
++    <property name="node.js.detected.package.eslint" value="true" />
++    <property name="node.js.detected.package.tslint" value="true" />
++    <property name="node.js.selected.package.eslint" value="(autodetect)" />
++    <property name="node.js.selected.package.tslint" value="(autodetect)" />
++    <property name="settings.editor.selected.configurable" value="PyScientificConfigurable" />
+   </component>
+-  <component name="RunManager">
++  <component name="RunManager" selected="Python.testsimulator">
+     <configuration name="LoadWPL" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+       <module name="MAChallenge" />
+       <option name="INTERPRETER_OPTIONS" value="" />
+@@ -44,8 +64,77 @@
+       <option name="INPUT_FILE" value="" />
+       <method v="2" />
+     </configuration>
++    <configuration name="testsimulator" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
++      <module name="MAChallenge" />
++      <option name="INTERPRETER_OPTIONS" value="" />
++      <option name="PARENT_ENVS" value="true" />
++      <envs>
++        <env name="PYTHONUNBUFFERED" value="1" />
++      </envs>
++      <option name="SDK_HOME" value="" />
++      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
++      <option name="IS_MODULE_SDK" value="true" />
++      <option name="ADD_CONTENT_ROOTS" value="true" />
++      <option name="ADD_SOURCE_ROOTS" value="true" />
++      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
++      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/testsimulator.py" />
++      <option name="PARAMETERS" value="" />
++      <option name="SHOW_COMMAND_LINE" value="false" />
++      <option name="EMULATE_TERMINAL" value="false" />
++      <option name="MODULE_MODE" value="false" />
++      <option name="REDIRECT_INPUT" value="false" />
++      <option name="INPUT_FILE" value="" />
++      <method v="2" />
++    </configuration>
++    <configuration name="testsimulator2" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
++      <module name="MAChallenge" />
++      <option name="INTERPRETER_OPTIONS" value="" />
++      <option name="PARENT_ENVS" value="true" />
++      <envs>
++        <env name="PYTHONUNBUFFERED" value="1" />
++      </envs>
++      <option name="SDK_HOME" value="" />
++      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
++      <option name="IS_MODULE_SDK" value="true" />
++      <option name="ADD_CONTENT_ROOTS" value="true" />
++      <option name="ADD_SOURCE_ROOTS" value="true" />
++      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
++      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/testsimulator2.py" />
++      <option name="PARAMETERS" value="" />
++      <option name="SHOW_COMMAND_LINE" value="false" />
++      <option name="EMULATE_TERMINAL" value="false" />
++      <option name="MODULE_MODE" value="false" />
++      <option name="REDIRECT_INPUT" value="false" />
++      <option name="INPUT_FILE" value="" />
++      <method v="2" />
++    </configuration>
++    <configuration name="testsimulator3" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
++      <module name="MAChallenge" />
++      <option name="INTERPRETER_OPTIONS" value="" />
++      <option name="PARENT_ENVS" value="true" />
++      <envs>
++        <env name="PYTHONUNBUFFERED" value="1" />
++      </envs>
++      <option name="SDK_HOME" value="" />
++      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
++      <option name="IS_MODULE_SDK" value="true" />
++      <option name="ADD_CONTENT_ROOTS" value="true" />
++      <option name="ADD_SOURCE_ROOTS" value="true" />
++      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
++      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/testsimulator3.py" />
++      <option name="PARAMETERS" value="" />
++      <option name="SHOW_COMMAND_LINE" value="false" />
++      <option name="EMULATE_TERMINAL" value="false" />
++      <option name="MODULE_MODE" value="false" />
++      <option name="REDIRECT_INPUT" value="false" />
++      <option name="INPUT_FILE" value="" />
++      <method v="2" />
++    </configuration>
+     <recent_temporary>
+       <list>
++        <item itemvalue="Python.testsimulator" />
++        <item itemvalue="Python.testsimulator3" />
++        <item itemvalue="Python.testsimulator2" />
+         <item itemvalue="Python.LoadWPL" />
+       </list>
+     </recent_temporary>
+@@ -59,13 +148,29 @@
+       <option name="presentableId" value="Default" />
+       <updated>1678389040961</updated>
+       <workItem from="1678389044579" duration="48000" />
++      <workItem from="1678990901394" duration="3753000" />
+     </task>
+     <servers />
+   </component>
+   <component name="TypeScriptGeneratedFilesManager">
+     <option name="version" value="3" />
+   </component>
++  <component name="Vcs.Log.Tabs.Properties">
++    <option name="TAB_STATES">
++      <map>
++        <entry key="MAIN">
++          <value>
++            <State />
++          </value>
++        </entry>
++      </map>
++    </option>
++  </component>
+   <component name="com.intellij.coverage.CoverageDataManagerImpl">
++    <SUITE FILE_PATH="coverage/boat_simulator_py$testsimulator.coverage" NAME="testsimulator Coverage Results" MODIFIED="1678985537012" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
++    <SUITE FILE_PATH="coverage/boat_simulator_py$testsimulator2.coverage" NAME="testsimulator2 Coverage Results" MODIFIED="1678982547836" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
++    <SUITE FILE_PATH="coverage/boat_simulator_py$testsimulator3.coverage" NAME="testsimulator3 Coverage Results" MODIFIED="1678985548572" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
++    <SUITE FILE_PATH="coverage/Simulator_py$testsimulator.coverage" NAME="testsimulator Coverage Results" MODIFIED="1678994820534" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+     <SUITE FILE_PATH="coverage/MAChallenge$LoadWPL.coverage" NAME="LoadWPL Coverage Results" MODIFIED="1678389074422" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+   </component>
+ </project>
+\ No newline at end of file
