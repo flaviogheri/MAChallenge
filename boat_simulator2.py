@@ -21,7 +21,7 @@ def next_item(item, array: np.ndarray):
             return array[i+1]
 
 
-class Simulator:
+class local_Simulator:
     def __init__(self, data_file: str):
         """ Class for simulating ship movement.
 
