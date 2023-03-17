@@ -66,17 +66,6 @@ def set_plot(waypoints: np.ndarray, current_pos: np.ndarray, current_speed: floa
     axis.plot(waypoints[:, 1], waypoints[:, 0], color='red', lw=1, linestyle='dashed' ) 
     
     # plotting the current position
-<<<<<<< HEAD
-    axis.plot(current_pos[1], current_pos[0], color = 'r', markersize=10, marker='1')
-    print(limits[1][1]*0.9999, limits[0][1]*0.9999)
-    axis.text(current_pos[1]*1.0002, current_pos[0]*1.000003, 'Position:'+str(round(current_pos[0], 6))+' '+str(round(current_pos[1], 6)))
-
-    # showing the speed
-    axis.text(current_pos[1]*1.0002, current_pos[0]*1.000002, 'Speed:'+str(round(current_speed, 3)))
-
-    # showing the heading (in degrees)
-    axis.text(current_pos[1]*1.0002, current_pos[0]*1.000001, 'Heading:'+str(round(current_speed, 3)))
-=======
     axis.plot(current_pos[1], current_pos[0], color='blue', markersize=5, marker='o')
     plt.title('Position: ' + str(round(current_pos[0], 6)) + '$^o$ '
               + str(round(current_pos[1], 6)) + '$^o$')
@@ -104,5 +93,4 @@ def set_plot(waypoints: np.ndarray, current_pos: np.ndarray, current_speed: floa
     plt.gca().invert_xaxis()
 
 
->>>>>>> 0db704eff3d95ca19947df0d05b6066cf9d7b79f
 
