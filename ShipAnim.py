@@ -4,6 +4,7 @@ this module is to create visualization for the ship movement.
 
 import numpy as np
 from matplotlib import pyplot as plt
+from numpy import deg2rad
 
 
 def find_limits(initial_position: np.ndarray, waypoints: np.ndarray) -> np.ndarray:
@@ -83,7 +84,8 @@ def set_plot(waypoints: np.ndarray, current_pos: np.ndarray, current_speed: floa
               'Heading:' + str(round(current_heading, 3)) + '$^o$')
 
     # draw an arrow pointing to the heading
-    plt.annotate("", xy=(current_pos[1] + 0.0001*np.cos(current_heading), current_pos[0] + 0.0001*np.sin(current_heading)),
+    rad_heading = deg2rad(current_heading)
+    plt.annotate("", xy=(current_pos[1] + 0.0001*np.cos(rad_heading+np.pi/2), current_pos[0] + 0.0001*np.sin(rad_heading+np.pi/2)),
                  xytext=(current_pos[1], current_pos[0]), arrowprops=dict(arrowstyle="->"))
 
     # show the path followed by the boat
