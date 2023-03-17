@@ -176,28 +176,12 @@ class Simulator:
             elif self._last_waypoint is None:
                 last_waypoint_DEG = DMM_to_DEG(self.initial_pos)
 
-            # print("-----"self._current_waypoint, self._current_pos)
-            distance_to_wp = call_distance(current_waypoint_DEG, current_pos_DEG)[0]  # distance in m
-            distance_from_last_wp = call_distance(last_waypoint_DEG, current_pos_DEG)[0]  # distance in m
-            # print("DISTANCE TO WAYPOINT: ", distance_to_wp)
-            if len(self._time_log) > 1:  # added
-                dt = self._current_time - self._time_log[-1]  # added
-            else:
-                dt = self._current_time  # added
 
-            # print("dt",dt)
-            if distance_to_wp < 15 or distance_from_last_wp < 3:
-                # print("1kt")
-                # last waypoint becomes current waypoint
-                if dt > 0:
-                    controler = PID(Kp=15.0, Ki=0.0, Kd=5.0, setpoint=5.0, limits=(0, 100))  # changed
-                    PID_output = controler.call(self._current_speed, dt)
-                    set_thrust(self._ser, PID_output)
-                    print(PID_output)
+            distance_to_wp = call_distance(current_waypoint_DEG, current_pos_DEG)[0]  # distance in m
+            # print("DISTANCE TO WAYPOINT: ", distance_to_wp)
 
             if distance_to_wp < 15:
                 # print("distance to current is smaller than 5/ change to next waypoint")
-                time.sleep(2)
                 # change last waypoint to current waypoint
                 self._last_waypoint = self._current_waypoint
 
@@ -209,13 +193,43 @@ class Simulator:
                 else:
                     self._current_waypoint = next_item(self._current_waypoint, self._current_track)
                 #    print("changing to next waypoint/ still in current track")
-            else:
-                # print("5kts")
-                if dt > 0:
-                    controler = PID(Kp=15.0, Ki=0.0, Kd=5.0, setpoint=1.0, limits=(0, 100))
-                    PID_output = controler.call(self._current_speed, dt)
-                    set_thrust(self._ser, PID_output)
-                    print(PID_output)
+
+
+    def __update_current_speed(self):
+        # Convert format of waypoint from DMM to DEG
+        current_waypoint_DEG = DMM_to_DEG(self._current_waypoint)
+        current_pos_DEG = DMM_to_DEG(self._current_pos)
+        if self._last_waypoint is not None:
+            last_waypoint_DEG = DMM_to_DEG(self._last_waypoint)
+        elif self._last_waypoint is None:
+            last_waypoint_DEG = DMM_to_DEG(self.initial_pos)
+
+        distance_to_wp = call_distance(current_waypoint_DEG, current_pos_DEG)[0]  # distance in m
+        distance_from_last_wp = call_distance(last_waypoint_DEG, current_pos_DEG)[0]  # distance in m
+
+        if len(self._time_log) > 1:  # added
+            dt = self._current_time - self._time_log[-1]  # added
+        else:
+            dt = self._current_time  # added
+
+        # print("dt",dt)
+        if distance_to_wp < 15 or distance_from_last_wp < 3:
+            # print("1kt")
+            # last waypoint becomes current waypoint
+            if dt > 0:
+                controler = PID(Kp=15.0, Ki=0.0, Kd=5.0, setpoint=1.0, limits=(0, 100))  # changed
+                PID_output = controler.call(self._current_speed, dt)
+                set_thrust(self._ser, PID_output)
+                #print(PID_output)
+
+        else:
+            # print("5kts")
+            if dt > 0:
+                controler = PID(Kp=15.0, Ki=0.0, Kd=5.0, setpoint=10.0, limits=(0, 100))
+                PID_output = controler.call(self._current_speed, dt)
+                set_thrust(self._ser, PID_output)
+                #(PID_output)
+
 
     # find the next heading
     def find_heading(self):
@@ -296,6 +310,9 @@ class Simulator:
             # Simulator.__update_current_track(self)
             # print("--------------", Simulator.__update_current_track(self))
             Simulator.__update_current_waypoint(self)
+
+            # update current speed 
+            Simulator.__update_current_speed(self)
 
             # Convert format of waypoint from DMM to DEG
             current_waypoint_DEG = DMM_to_DEG(self._current_waypoint)
