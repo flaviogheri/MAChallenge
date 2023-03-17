@@ -33,7 +33,7 @@ class PID:
         self.derivative = 0.0
         self.limits = limits
         
-    def __call__(self, measured_value, dt):
+    def call(self, measured_value, dt):
         
         error = self.setpoint - measured_value
         prev_error = self.setpoint - self.previous_input
