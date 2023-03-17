@@ -48,7 +48,6 @@ def find_waypoint_name(waypoint, waypoints_list=wayp):
 class Simulator:
     def __init__(self, data_file: str):
         """ Class for simulating ship movement.
-
         Args:
             data_file: .txt file containing the list of waypoints and tracks
         """
@@ -180,7 +179,7 @@ class Simulator:
             distance_to_wp = call_distance(current_waypoint_DEG, current_pos_DEG)[0]  # distance in m
             # print("DISTANCE TO WAYPOINT: ", distance_to_wp)
 
-            if distance_to_wp < 15:
+            if distance_to_wp < 10:
                 # print("distance to current is smaller than 5/ change to next waypoint")
                 # change last waypoint to current waypoint
                 self._last_waypoint = self._current_waypoint
@@ -225,7 +224,7 @@ class Simulator:
         else:
             # print("5kts")
             if dt > 0:
-                controler = PID(Kp=15.0, Ki=0.0, Kd=5.0, setpoint=10.0, limits=(0, 100))
+                controler = PID(Kp=15.0, Ki=0.0, Kd=5.0, setpoint=1.0, limits=(0, 100))
                 PID_output = controler.call(self._current_speed, dt)
                 set_thrust(self._ser, PID_output)
                 #(PID_output)
@@ -280,10 +279,10 @@ class Simulator:
 
         ### THIS PART IS JUST FOR PLOTTING ####
         # the list of waypoints in deg
-        waypoints_list = Simulator.find_waypoints_deg()
+        waypoints_list = Simulator.find_waypoints_deg(self)
 
         # the limits for the plot
-        plot_limits = find_limits(initial_position=self.initial_pos, waypoints=waypoints_list)
+        plot_limits = find_limits(initial_position=np.array(DMM_to_DEG(self.initial_pos)), waypoints=waypoints_list)
 
         # Define a function to handle the keyboard interrupt event
         def on_key_press(event):
@@ -303,6 +302,7 @@ class Simulator:
 
         # running until the mission is achieved
         while not self._mission:
+            start_time = time.time()
             # update position of the boat
             Simulator.__update_position(self)
 
@@ -396,13 +396,12 @@ class Simulator:
 
             # Clear the plot to allow for a live update
             ax.cla()
+            end_time = time.time()
+            print(end_time-start_time)
 
         # Turn off interactive plotting
         plt.ioff()
 
         # Show the final plot
         plt.show()
-
-
-
 
