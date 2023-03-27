@@ -32,17 +32,17 @@ def next_item(item, array: np.ndarray):
             return array[i + 1]
 
 
-wayp = [[5050.710799, 44.755897], [5050.732397, 44.755897], [5050.732397, 44.738794],
-        [5050.710799, 44.738794], [5050.710799, 44.721691], [5050.732397, 44.721691],
-        [5050.732397, 44.704588], [5050.710799, 44.704588]]
+# :wayp = [[5050.710799, 44.755897], [5050.732397, 44.755897], [5050.732397, 44.738794],
+        # [5050.710799, 44.738794], [5050.710799, 44.721691], [5050.732397, 44.721691],
+        # [5050.732397, 44.704588], [5050.710799, 44.704588]]
 
 
-def find_waypoint_name(waypoint, waypoints_list=wayp):
-    for i in range(len(waypoints_list)):
-        if compare_points(waypoint, waypoints_list[i]):
-            return 'WPT' + str(i + 1)
+# def find_waypoint_name(waypoint, waypoints_list=wayp):
+    # for i in range(len(waypoints_list)):
+        # if compare_points(waypoint, waypoints_list[i]):
+            # return 'WPT' + str(i + 1)
 
-    return 'None'
+    # return 'None'
 
 
 class Simulator:
@@ -122,7 +122,10 @@ class Simulator:
         long = float(out[2])
         speed = float(out[4])
         time = float(out[6])
-        self._current_heading = float(out[5])
+        try:
+          self._current_heading = float(out[5])
+        except:
+            self._current_heading = 0
 
         # lat_dir = str(out[1])
         # lon_dir = str(out[3])
@@ -179,7 +182,7 @@ class Simulator:
             distance_to_wp = call_distance(current_waypoint_DEG, current_pos_DEG)[0]  # distance in m
             # print("DISTANCE TO WAYPOINT: ", distance_to_wp)
 
-            if distance_to_wp < 10:
+            if distance_to_wp < 15:
                 # print("distance to current is smaller than 5/ change to next waypoint")
                 # change last waypoint to current waypoint
                 self._last_waypoint = self._current_waypoint
@@ -212,11 +215,11 @@ class Simulator:
             dt = self._current_time  # added
 
         # print("dt",dt)
-        if distance_to_wp < 15 or distance_from_last_wp < 3:
+        if distance_to_wp > 15 and distance_from_last_wp > 15:
             # print("1kt")
             # last waypoint becomes current waypoint
             if dt > 0:
-                controler = PID(Kp=15.0, Ki=0.0, Kd=5.0, setpoint=1.0, limits=(0, 100))  # changed
+                controler = PID(Kp=15.0, Ki=0.0, Kd=5.0, setpoint=2.5, limits=(-100, 100))  # changed
                 PID_output = controler.call(self._current_speed, dt)
                 set_thrust(self._ser, PID_output)
                 #print(PID_output)
@@ -224,7 +227,7 @@ class Simulator:
         else:
             # print("5kts")
             if dt > 0:
-                controler = PID(Kp=15.0, Ki=0.0, Kd=5.0, setpoint=1.0, limits=(0, 100))
+                controler = PID(Kp=15.0, Ki=0.0, Kd=5.0, setpoint=0.5, limits=(-100, 100))
                 PID_output = controler.call(self._current_speed, dt)
                 set_thrust(self._ser, PID_output)
                 #(PID_output)
@@ -397,7 +400,7 @@ class Simulator:
             # Clear the plot to allow for a live update
             ax.cla()
             end_time = time.time()
-            print(end_time-start_time)
+            # print(end_time-start_time)
 
         # Turn off interactive plotting
         plt.ioff()

@@ -17,6 +17,7 @@ def find_limits(initial_position: np.ndarray, waypoints: np.ndarray) -> np.ndarr
     Returns: [[lon_min, lon_max], [lat_min,lat_max]]
 
     """
+    print(initial_position)
     # the range for lat and long for the waypoints and add 10% to it
     range_list = np.concatenate((waypoints, np.expand_dims(initial_position, axis=0)))
 
@@ -28,6 +29,10 @@ def find_limits(initial_position: np.ndarray, waypoints: np.ndarray) -> np.ndarr
     lon_limit = np.array([np.max(range_list[:, 1]) - lon_range / 2, np.min(range_list[:, 1]) + lon_range / 2])
 
     return np.array([lon_limit, lat_limit])
+
+
+
+
 
 
 def set_plot(waypoints: np.ndarray, current_pos: np.ndarray, current_speed: float,
