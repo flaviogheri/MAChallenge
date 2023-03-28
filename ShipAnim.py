@@ -4,8 +4,12 @@ this module is to create visualization for the ship movement.
 
 import numpy as np
 from matplotlib import pyplot as plt
-from numpy import deg2rad
 
+
+def on_key_press(event, figure):
+    """ A function to handle the keyboard interrput event. See matplotlib interactive animation for more documentation. """
+    if event.key == 'p':
+        figure.canvas.stop_event_loop()
 
 def find_limits(initial_position: np.ndarray, waypoints: np.ndarray) -> np.ndarray:
     """Creates limits for the plots
@@ -17,7 +21,6 @@ def find_limits(initial_position: np.ndarray, waypoints: np.ndarray) -> np.ndarr
     Returns: [[lon_min, lon_max], [lat_min,lat_max]]
 
     """
-    print(initial_position)
     # the range for lat and long for the waypoints and add 10% to it
     range_list = np.concatenate((waypoints, np.expand_dims(initial_position, axis=0)))
 
@@ -29,10 +32,6 @@ def find_limits(initial_position: np.ndarray, waypoints: np.ndarray) -> np.ndarr
     lon_limit = np.array([np.max(range_list[:, 1]) - lon_range / 2, np.min(range_list[:, 1]) + lon_range / 2])
 
     return np.array([lon_limit, lat_limit])
-
-
-
-
 
 
 def set_plot(waypoints: np.ndarray, current_pos: np.ndarray, current_speed: float,
@@ -89,8 +88,7 @@ def set_plot(waypoints: np.ndarray, current_pos: np.ndarray, current_speed: floa
               'Heading:' + str(round(current_heading, 3)) + '$^o$')
 
     # draw an arrow pointing to the heading
-    rad_heading = deg2rad(current_heading)
-    plt.annotate("", xy=(current_pos[1] + 0.0001*np.cos(rad_heading+np.pi/2), current_pos[0] + 0.0001*np.sin(rad_heading+np.pi/2)),
+    plt.annotate("", xy=(current_pos[1] + 0.0001*np.cos(current_heading), current_pos[0] + 0.0001*np.sin(current_heading)),
                  xytext=(current_pos[1], current_pos[0]), arrowprops=dict(arrowstyle="->"))
 
     # show the path followed by the boat
