@@ -1,0 +1,61 @@
+# Parameters used to set up the Simulator class. There 2 types of parameters the simulator the boat can have:
+# Boat attributes: Characteristics of the boat such as the width, height, etc.
+# Hyper parameters: Certain parameters used for the code such as the acceptable distance to waypoint, distance when to
+# change the speed, etc.
+# All the parameters should be documented when defined. If you any add any new parameters please do comment
+# and explain what is used for and where is used.
+
+
+
+# Boat parameters
+boat_attributes:
+  # boat parameters used to simulate the correct dimensions of the boat. If the boat is treated as a point
+  # then all dimension are 0. in the current version they are not used yet.
+  dimensions:
+     # boat's height.
+     height: 0
+
+     # boat's width.
+     width: 0
+
+     # boat's length.
+     length: 0
+
+
+# Hyper Parameters
+hyper_parameters:
+  # Acceptance radius of a waypoint (in meters).
+  acceptance_radius: 10
+
+  # Speed parameters for the boat (in meters per second).
+  speed:
+     # speed while maintaining a straight line on track
+     on_track: 5
+
+     # speed while turing after reaching a waypoint
+     while_turning: 1
+
+  # Distance parameters when to change the speed (in meters).
+  distance:
+     # Keep a defined speed for a while after the last waypoint has been reached.
+     after_last_waypoint: 3
+
+     # Keep a defined speed for a while after until the current waypoint is reached.
+     before_current_waypoint: 15
+
+  # Initial position if necessary (in DMM format). If not known, set to [0,0].
+  initial_position: [5050.708799, 44.755897]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
