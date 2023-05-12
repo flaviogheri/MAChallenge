@@ -1,0 +1,15 @@
+import socket
+
+
+
+def extract_SIG(client_socket):
+
+    response = client_socket.recv(1024).decode()
+    values = response.split(',')[1].split('*')[0]
+    print(values)
+    client_socket.close()
+
+    return values
+
+
+

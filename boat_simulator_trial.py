@@ -16,7 +16,7 @@ import time
 from Speed_controller import PID, clamp
 import matplotlib.pyplot as plt
 from ShipAnim import find_limits, set_plot
-
+import socket
 
 def compare_points(x, y):
     if x[0] == y[0] and x[1] == y[1]:
@@ -60,8 +60,12 @@ class Simulator:
         # the current speed of the boat, should be updated each time in the loop
         self._current_speed = None
 
+        self._current_SIG = None
+
         # the current serial object (used to connect to external hardware)
         self._ser = None
+
+        self._socket = None
 
         # the current waypoint (next mission for the boat)
         self._current_waypoint = None
@@ -104,6 +108,21 @@ class Simulator:
 
         self._speed_log = []
         self._time_log = []
+
+
+    def create_tcp_conn(self, n_host: str, n_port: int):
+        """Establishes a TCP connection to a host on the specified port."""
+
+        # Create a socket object
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        # Connect to the server
+        self._socket.connect((n_host, n_port))
+
+
+
+
+
 
     def __update_position(self):
         """ Update current position from external readings of GPS."""
@@ -233,6 +252,13 @@ class Simulator:
                 #(PID_output)
 
 
+    def __update_SIG(self):
+        response = self._socket.recv(1024).decode()
+        conc = response.split(',')[1].split('*')[0] # concentration of pollutant
+        self._current_SIG = conc
+
+
+
     # find the next heading
     def find_heading(self):
         # if the boat just started (the first waypoint has not been reached) use [0,0] as start
@@ -266,6 +292,7 @@ class Simulator:
 
         # create connection with the hardware
         Simulator.create_connection(self, 'COM3', 115200, 1)
+        Simulator.create_tcp_conn(self, '127.0.0.1', 5001)
 
         set_thrust(self._ser, thrust=50)
 
@@ -316,6 +343,9 @@ class Simulator:
 
             # update current speed 
             Simulator.__update_current_speed(self)
+
+            Simulator.__update_SIG(self)
+            print(self._current_SIG)
 
             # Convert format of waypoint from DMM to DEG
             current_waypoint_DEG = DMM_to_DEG(self._current_waypoint)
@@ -408,3 +438,4 @@ class Simulator:
         # Show the final plot
         plt.show()
 
+#         self._socket.close()
