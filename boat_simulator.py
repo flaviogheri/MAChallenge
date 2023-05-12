@@ -292,9 +292,9 @@ class Simulator:
         waypoints_list = Simulator.find_waypoints_deg(self)
 
         # save the data into a data log
-        update_boat_log(recorded_time=self._current_time, recorded_speed=self._current_speed,
-                        recorded_heading=self._current_heading, recorded_latitude=self._current_pos[0],
-                        recorded_longitude=self._current_pos[1])
+       # update_boat_log(recorded_time=self._current_time, recorded_speed=self._current_speed,
+        #                recorded_heading=self._current_heading, recorded_latitude=self._current_pos[0],
+        #                recorded_longitude=self._current_pos[1])
 
         # the limits for the plot.
         plot_limits = find_limits(initial_position=np.array(DMM_to_DEG(self._initial_pos)), waypoints=waypoints_list)

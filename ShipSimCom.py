@@ -2,7 +2,7 @@ import serial
 
 
 # establish serial communication
-ser = serial.Serial(port="COM4", baudrate=115200, timeout=1)
+ser = serial.Serial(port="COM3", baudrate=115200, timeout=1)
 
 def NMEA_CRC(msg):
     """ Calculate the NMEA CRC checksum for a given message """

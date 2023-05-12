@@ -219,7 +219,7 @@ class Simulator:
             # print("1kt")
             # last waypoint becomes current waypoint
             if dt > 0:
-                controler = PID(Kp=15.0, Ki=0.0, Kd=5.0, setpoint=2.5, limits=(-100, 100))  # changed
+                controler = PID(Kp=15.0, Ki=0.0, Kd=5.0, setpoint=1, limits=(-100, 100))  # changed
                 PID_output = controler.call(self._current_speed, dt)
                 set_thrust(self._ser, PID_output)
                 #print(PID_output)
@@ -265,7 +265,7 @@ class Simulator:
         """The main loop running the simulation."""
 
         # create connection with the hardware
-        Simulator.create_connection(self, 'COM4', 115200, 1)
+        Simulator.create_connection(self, 'COM3', 115200, 1)
 
         set_thrust(self._ser, thrust=50)
 
