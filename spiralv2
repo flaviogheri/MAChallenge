@@ -1,0 +1,90 @@
+import matplotlib.pyplot as plt
+
+
+import math
+
+
+def generate_spiral_square(initial_coordinates, distance_meters, num_points):
+    # convert distance from meters to decimal minutes
+    distance_dmm = distance_meters / 1852
+    
+    waypoints = [initial_coordinates]
+    x, y = initial_coordinates
+    for i in range(num_points):
+        # calculate the next x and y coordinates
+        if i % 4 == 0:
+            x += distance_dmm
+        elif i % 4 == 1:
+            y += distance_dmm
+        elif i % 4 == 2:
+            x -= distance_dmm
+        else:
+            y -= distance_dmm
+        # add the new waypoint to the list
+        waypoints.append((x, y))
+        # increase the distance for the next side
+        if i % 2 == 1:
+            distance_dmm += 10 / 1852
+    return waypoints
+
+
+initial_coordinates = (50.845, 44.755897)
+distance = 5  # 10 meters between spiral lines
+num_points = 4
+waypoints = generate_spiral_square(initial_coordinates, distance, num_points)
+print(waypoints)
+
+
+
+# plot the waypoints
+x_values = [x for x, y in waypoints]
+y_values = [y for x, y in waypoints]
+
+# plt.figure()
+# plt.plot(x_values, y_values, 'o-')
+
+# plt.xlabel('X')
+# plt.ylabel('Y')
+# plt.title('Spiral Square')
+
+# plt.show()
+
+
+def decimal_degrees_to_dmm_dmd(coordinates):
+    lat, lon = coordinates
+    lat_deg = int(lat)
+    lat_min = int(abs(lat - lat_deg) * 60)
+    lat_sec = round((abs(lat - lat_deg) * 60 - lat_min) * 60, 2)
+    lat_dmm = (lat_deg, lat_min, lat_sec)
+
+    lat_decimal = lat_dmm[0] * 100 + lat_dmm[1] + lat_dmm[2] / 60
+    lat_formatted = '{:010.6f}'.format(lat_decimal)
+
+    lon_deg = int(lon)
+    lon_dmd = '{:03.6f}'.format(lon)
+
+    return lat_formatted, lon_dmd
+
+
+# generate MMWPL messages for each waypoint
+waypoint_messages = []
+for i, waypoint in enumerate(waypoints):
+    lat_dmm, lon_dmm = decimal_degrees_to_dmm_dmd(waypoint)
+    lat_direction = "N" if waypoint[0] >= 0 else "S"
+    lon_direction = "W" if waypoint[1] >= 0 else "E"
+    message = f"$MMWPL,{lat_dmm},{lat_direction},000{lon_dmm},{lon_direction},WPT {i+1}"
+    waypoint_messages.append(message)
+
+# generate MMRTE message with the list of waypoints
+waypoint_list = ",".join([f"WPT {i+1}" for i in range(len(waypoints))])
+mmrte_message = f"$MMRTE,1,1,c,TRACK 1,{waypoint_list}"
+
+print(waypoint_messages)
+
+
+with open("waypoints.txt", "w") as f:
+    for message in waypoint_messages:
+        f.write(message + "\n")
+    f.write(mmrte_message)
+
+

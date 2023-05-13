@@ -38,20 +38,18 @@ waypoints = generate_spiral_square(inital_coordinates, waypoint_n, area_length)
 print(waypoints)
 
 
-
 # plot the waypoints
 x_values = [x for x, y in waypoints]
 y_values = [y for x, y in waypoints]
-# plt.plot(x_values, y_values, 'o-')
 
-# # add labels and title
-# plt.xlabel('X')
-# plt.ylabel('Y')
-# plt.title('Spiral Square')
+plt.figure()
+plt.plot(x_values, y_values, 'o-')
 
-# show the plot
-# plt.show()
+plt.xlabel('X')
+plt.ylabel('Y')
+plt.title('Spiral Square')
 
+plt.show()
 
 
 def convert_to_MMWPL(lst):
@@ -64,6 +62,9 @@ def convert_to_MMWPL(lst):
         while len(lon.split(".")[0]) < 4:
             lon = "0" + lon
         message += f"$MMWPL,{lat},{lat_dir},0{lon},{lon_dir},WPT {i+1}\n"
+
+    # Add MMRTE line with total number of waypoints
+    message += f"$MMRTE,{i+1},1,c,TRACK 1," + ",".join([f"WPT {j+1}" for j in range(i+1)]) + "\n"
     return message
 
 
@@ -72,3 +73,6 @@ message = convert_to_MMWPL(waypoints)
 print(message)
 with open("output.txt", "w") as f:
    f.write(message)
+
+
+

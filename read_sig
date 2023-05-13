@@ -2,14 +2,22 @@ import socket
 
 
 
-def extract_SIG(client_socket):
 
+# set up the connection
+host = '127.0.0.1'  # IP address of the server
+port = 5001  # port number to use
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client_socket.connect((host, port))
+
+while True:
+
+    # receive a response from the server
     response = client_socket.recv(1024).decode()
     values = response.split(',')[1].split('*')[0]
     print(values)
-    client_socket.close()
 
-    return values
+# close the connection (this will never execute since the loop is infinite)
+client_socket.close()
 
 
 

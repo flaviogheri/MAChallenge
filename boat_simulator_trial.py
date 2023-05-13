@@ -345,7 +345,7 @@ class Simulator:
             Simulator.__update_current_speed(self)
 
             Simulator.__update_SIG(self)
-            print(self._current_SIG)
+            # print(self._current_SIG)
 
             # Convert format of waypoint from DMM to DEG
             current_waypoint_DEG = DMM_to_DEG(self._current_waypoint)
@@ -355,7 +355,7 @@ class Simulator:
             # check whether the mission has finished (last waypoint has been reached)
             distance = call_distance(current_waypoint_DEG, current_pos_DEG)[0]
 
-            # print('current waypoint:', self._current_waypoint)
+            print('current waypoint:', self._current_waypoint)
             # print('current pos:', self._current_pos)
             # print(find_waypoint_name(self._current_waypoint))
             # print('current track:', self.track_list.index(self._current_track))
